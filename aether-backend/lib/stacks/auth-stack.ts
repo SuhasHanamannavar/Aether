@@ -3,13 +3,11 @@ import {
   UserPool,
   UserPoolClient,
   AccountRecovery,
+  UserPoolEmail,
   OAuthScope,
   ClientAttributes,
   StringAttribute,
 } from 'aws-cdk-lib/aws-cognito';
-import { Runtime } from 'aws-cdk-lib/aws-lambda';
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
-import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
 
 interface AuthStackProps extends StackProps {
@@ -22,17 +20,6 @@ export class AuthStack extends Stack {
 
   constructor(scope: Construct, id: string, props: AuthStackProps) {
     super(scope, id, props);
-
-    const autoConfirmFn = new NodejsFunction(this, 'AutoConfirmFn', {
-      functionName: `${props.appName}AutoConfirm`,
-      entry: 'lambdas/auto-confirm/index.ts',
-      runtime: Runtime.NODEJS_22_X,
-      logRetention: RetentionDays.ONE_WEEK,
-      bundling: {
-        minify: true,
-        target: 'node22',
-      },
-    });
 
     this.userPool = new UserPool(this, 'UserPool', {
       userPoolName: `${props.appName}UserPool`,
@@ -48,15 +35,17 @@ export class AuthStack extends Stack {
       customAttributes: {
         travelerType: new StringAttribute({ mutable: true }),
       },
+      email: UserPoolEmail.withSES({
+        fromEmail: 'zelo17offical@gmail.com',
+        fromName: 'Zelo',
+        replyTo: 'zelo17offical@gmail.com',
+      }),
       passwordPolicy: {
         minLength: 8,
         requireLowercase: true,
         requireUppercase: true,
         requireDigits: true,
         requireSymbols: false,
-      },
-      lambdaTriggers: {
-        preSignUp: autoConfirmFn,
       },
       removalPolicy: RemovalPolicy.DESTROY,
     });
