@@ -34,6 +34,9 @@ const bookingStack = new BookingStack(app, `${appName}BookingStack`, {
   appName,
 });
 
+tripStack.addDependency(userStack);
+bookingStack.addDependency(userStack);
+
 new NotificationStack(app, `${appName}NotificationStack`, {
   env,
   appName,
