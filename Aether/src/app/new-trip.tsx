@@ -14,7 +14,6 @@ import { colors, spacing, borderRadius, typography } from '../theme/tokens';
 import Button from '../components/Button';
 import ModeToggle from '../components/ModeToggle';
 import VibeTagGrid from '../components/VibeTagGrid';
-import PopularDestinationChip from '../components/PopularDestinationChip';
 import BudgetPresetChips from '../components/BudgetPresetChips';
 import BottomSheet from '../components/BottomSheet';
 import { useUser } from '../context/UserContext';
@@ -30,15 +29,6 @@ const vibeTags = [
   { id: 'nightlife', label: 'Nightlife', emoji: '🌃' },
   { id: 'nature', label: 'Nature', emoji: '🌿' },
   { id: 'history', label: 'History', emoji: '📜' },
-];
-
-const popularDestinations = [
-  { name: 'Tokyo', emoji: '🗼', color: '#EF4444' },
-  { name: 'Paris', emoji: '🗼', color: '#6366F1' },
-  { name: 'Bali', emoji: '🏝️', color: '#10B981' },
-  { name: 'New York', emoji: '🗽', color: '#F59E0B' },
-  { name: 'London', emoji: '🎡', color: '#3B82F6' },
-  { name: 'Sydney', emoji: '🏄', color: '#EC4899' },
 ];
 
 const budgetPresets = [
@@ -159,19 +149,6 @@ export default function NewTripScreen() {
               )}
             </View>
 
-            <Text style={styles.suggestionLabel}>Popular destinations</Text>
-            <View style={styles.suggestionRow}>
-              {popularDestinations.map((s) => (
-                <PopularDestinationChip
-                  key={s.name}
-                  name={s.name}
-                  emoji={s.emoji}
-                  color={s.color}
-                  isSelected={destination === s.name}
-                  onPress={() => setDestinationLocal(s.name)}
-                />
-              ))}
-            </View>
           </Animated.View>
         ) : (
           <Animated.View

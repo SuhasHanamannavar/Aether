@@ -39,13 +39,6 @@ interface ArchetypeType {
   highlights: string[];
 }
 
-const DEFAULT_ARCHETYPES: ArchetypeType[] = [
-  { id: 'culinary', title: 'The Culinary Journey', subtitle: 'Taste the heart of the destination', emoji: '🍜', color: '#E8A87C', score: 90, highlights: ['Local cuisine tours', 'Street food markets', 'Cooking classes'] },
-  { id: 'zen', title: 'The Zen Retreat', subtitle: 'Find your inner peace', emoji: '🏯', color: '#41B3A3', score: 88, highlights: ['Wellness activities', 'Cultural sites', 'Nature walks'] },
-  { id: 'urban', title: 'The Urban Explorer', subtitle: 'City lights & hidden gems', emoji: '🌃', color: '#1A1A2E', score: 85, highlights: ['City landmarks', 'Local nightlife', 'Shopping districts'] },
-  { id: 'nature', title: 'The Nature Wanderer', subtitle: 'Trails, peaks & sunrises', emoji: '🏔️', color: '#10B981', score: 83, highlights: ['Hiking trails', 'Scenic viewpoints', 'Outdoor adventures'] },
-];
-
 function ArchetypeCard({
   archetype,
   isSelected,
@@ -132,7 +125,7 @@ export default function TripCanvasScreen() {
   const { trip, setArchetype, setTransportMode } = useTrip();
   const [selectedArchetype, setSelectedArchetype] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [canvasData, setCanvasData] = useState<ArchetypeType[] | null>(null);
+  const [canvasData, setCanvasData] = useState<ArchetypeType[]>([]);
   const [generating, setGenerating] = useState(false);
   const [transportMode, setLocalTransportMode] = useState<TransportMode>(trip.transportMode || 'fly');
 
@@ -207,8 +200,8 @@ export default function TripCanvasScreen() {
           </Animated.View>
 
           {loading ? (
-            <Text style={styles.loadingText}>Analyzing your trip...</Text>
-          ) : (
+            <Text style={styles.loadingText}>Loading...</Text>
+          ) : canvasData.length > 0 ? (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -217,7 +210,7 @@ export default function TripCanvasScreen() {
               decelerationRate="fast"
             >
               <View style={styles.cardsRow}>
-                {(canvasData || DEFAULT_ARCHETYPES).map((arch, i) => (
+                {canvasData.map((arch, i) => (
                   <ArchetypeCard
                     key={arch.id}
                     archetype={arch}
@@ -228,6 +221,12 @@ export default function TripCanvasScreen() {
                 ))}
               </View>
             </ScrollView>
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyEmoji}>🎨</Text>
+              <Text style={styles.emptyTitle}>No archetypes available</Text>
+              <Text style={styles.emptyDesc}>Complete your trip details to generate personalized archetypes</Text>
+            </View>
           )}
         </View>
       </ScrollView>
@@ -317,6 +316,24 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     paddingVertical: spacing.xl * 2,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  emptyEmoji: {
+    fontSize: 48,
+    marginBottom: spacing.md,
+  },
+  emptyTitle: {
+    ...typography.h3,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  emptyDesc: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
   cardsScroll: {
     paddingLeft: spacing.xl,

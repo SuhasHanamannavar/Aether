@@ -10,7 +10,7 @@ import {
   DeleteCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
-import { archetypes, generateItinerary, generateRestaurants, generateCanvas } from './canvas';
+import { generateItinerary, generateRestaurants, generateCanvas } from './canvas';
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const locationClient = new LocationClient({});
