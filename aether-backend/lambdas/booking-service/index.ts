@@ -28,7 +28,7 @@ export const handler = async (event: any) => {
     const method = event.httpMethod;
     const body = event.body ? JSON.parse(event.body) : {};
     const bookingId = event.pathParameters?.bookingId;
-    const authUserId = event.requestContext?.authorizer?.claims?.sub;
+    const authUserId = event.headers?.['x-user-id'] || event.headers?.['X-User-Id'];
     const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
 
     // POST /bookings — Create booking quote
@@ -132,8 +132,19 @@ export const handler = async (event: any) => {
       return respond(200, { message: 'Thank you for your feedback!', feedbackId: feedback.feedbackId }, headers);
     }
 
+    // GET /prep/{tripId} — Get checklist state
+    if (path === '/prep/{tripId}' && method === 'GET') {
+      const tripId = event.pathParameters?.tripId;
+      const result = await ddb.send(new QueryCommand({
+        TableName: PREP_TABLE,
+        KeyConditionExpression: 'tripId = :tid',
+        ExpressionAttributeValues: { ':tid': tripId },
+      }));
+      return respond(200, result.Items || [], headers);
+    }
+
     // PUT /prep/{tripId}/{itemId} — Mark checklist complete
-    if (path.includes('/prep/')) {
+    if (path === '/prep/{tripId}/{itemId}' && method === 'PUT') {
       const tripId = event.pathParameters?.tripId;
       const itemId = event.pathParameters?.itemId;
       const { completed } = body;

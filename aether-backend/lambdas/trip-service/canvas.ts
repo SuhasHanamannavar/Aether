@@ -65,18 +65,52 @@ export function generateCanvas(trip: any) {
   };
 }
 
+function getTransportSegments(mode: string) {
+  if (mode === 'drive') {
+    return [
+      { type: 'drive', title: 'Drive leg 1 • Departure', time: '08:00 - 10:30', price: 25, score: 85, emoji: '🚗' },
+      { type: 'drive', title: 'Fuel stop • Rest area', time: '10:30 - 10:45', price: 45, score: 80, emoji: '⛽' },
+      { type: 'drive', title: 'Drive leg 2 • Arrival', time: '10:45 - 13:00', price: 25, score: 85, emoji: '🚗' },
+    ];
+  }
+  if (mode === 'transit') {
+    return [
+      { type: 'transit', title: 'Express Train • Shinjuku Stn', time: '08:30 - 10:00', price: 15, score: 88, emoji: '🚄' },
+      { type: 'transit', title: 'Local Line • Transfer', time: '10:15 - 11:00', price: 5, score: 82, emoji: '🚃' },
+      { type: 'transit', title: 'Bus • Final leg', time: '11:10 - 11:45', price: 3, score: 78, emoji: '🚌' },
+    ];
+  }
+  if (mode === 'walk') {
+    return [
+      { type: 'walk', title: 'Walking route • Segment 1', time: '09:00 - 09:40', price: 0, score: 90, emoji: '🚶' },
+      { type: 'walk', title: 'Rest stop • Park bench', time: '09:40 - 10:00', price: 0, score: 85, emoji: '🪑' },
+      { type: 'walk', title: 'Walking route • Segment 2', time: '10:00 - 10:30', price: 0, score: 90, emoji: '🚶' },
+    ];
+  }
+  if (mode === 'bike') {
+    return [
+      { type: 'bike', title: 'Cycle path • Leg 1', time: '08:30 - 09:15', price: 0, score: 87, emoji: '🚲' },
+      { type: 'bike', title: 'Bike parking • Stop', time: '09:15 - 09:30', price: 2, score: 80, emoji: '🅿️' },
+      { type: 'bike', title: 'Cycle path • Leg 2', time: '09:30 - 10:10', price: 0, score: 87, emoji: '🚲' },
+    ];
+  }
+  // fly (default)
+  return [
+    { type: 'flight', title: 'JAL 42 • Narita Airport', time: '10:00 - 14:30', price: 680, score: 92, emoji: '✈️' },
+    { type: 'flight', title: 'JAL 41 • Return to Home', time: '16:00 - 08:30', price: 680, score: 90, emoji: '✈️' },
+  ];
+}
+
 export function generateItinerary(trip: any, userId: string) {
   const dest = getDestinationData(trip.destination);
   const items: any[] = [];
   const tripId = trip.tripId;
   const archetype = trip.archetype || 'culinary';
+  const transportMode = trip.transportMode || 'fly';
   const days = 3;
 
   const places = dest.places;
-  const flights = [
-    { type: 'flight', title: 'JAL 42 • Narita Airport', time: '10:00 - 14:30', price: 680, score: 92, emoji: '✈️' },
-    { type: 'flight', title: 'JAL 41 • Return to Home', time: '16:00 - 08:30', price: 680, score: 90, emoji: '✈️' },
-  ];
+  const transportSegments = getTransportSegments(transportMode);
 
   const archetypeActivities = places.filter((p: any) =>
     archetype === 'culinary' ? p.type === 'restaurant' || p.name.toLowerCase().includes('market') :
@@ -87,10 +121,11 @@ export function generateItinerary(trip: any, userId: string) {
 
   const shuffled = [...archetypeActivities].sort(() => Math.random() - 0.5);
 
-  // Day 1: Arrival
+  // Day 1: Arrival — transport segment replaces flight
   items.push({
     itemId: uuidv4(), tripId, day: 1, order: 0,
-    ...flights[0], bookingStatus: 'unbooked', geoLocation: { lat: 35.6762, lng: 139.6503 },
+    ...transportSegments[0], bookingStatus: 'unbooked',
+    geoLocation: { lat: 35.6762, lng: 139.6503 },
   });
   const hotel1 = places.find((p: any) => p.id === 'h1');
   if (hotel1) {
@@ -112,31 +147,45 @@ export function generateItinerary(trip: any, userId: string) {
     });
   }
 
-  // Day 2: Exploration
-  const day2Acts = shuffled.slice(1, 4);
+  // Day 2: Exploration — include a transport segment
+  const day2Acts = shuffled.slice(1, 3);
   day2Acts.forEach((act: any, i: number) => {
     items.push({
       itemId: uuidv4(), tripId, day: 2, order: i,
       type: act.type === 'restaurant' ? 'dining' : 'activity',
       title: act.name,
-      time: i === 0 ? '06:00 - 09:00' : i === 1 ? '10:00 - 16:00' : '19:00',
+      time: i === 0 ? '06:00 - 09:00' : '10:00 - 16:00',
       price: act.priceLevel * 30 + 10, score: act.score, emoji: act.emoji,
       bookingStatus: 'unbooked', geoLocation: { lat: act.lat, lng: act.lng },
     });
   });
+  if (transportSegments[1]) {
+    items.push({
+      itemId: uuidv4(), tripId, day: 2, order: 2,
+      ...transportSegments[1], bookingStatus: 'unbooked',
+      geoLocation: { lat: 35.6762, lng: 139.6503 },
+    });
+  }
 
-  // Day 3: Day trip + return
-  const day3Act = shuffled.slice(4, 7);
+  // Day 3: Day trip + return transport
+  const day3Act = shuffled.slice(3, 5);
   day3Act.forEach((act: any, i: number) => {
     items.push({
       itemId: uuidv4(), tripId, day: 3, order: i,
       type: act.type === 'restaurant' ? 'dining' : 'activity',
       title: act.name,
-      time: i === 0 ? '07:00 - 09:00' : i === 1 ? '09:30 - 12:00' : '13:00 - 16:00',
+      time: i === 0 ? '07:00 - 09:00' : '09:30 - 12:00',
       price: act.priceLevel * 30 + 10, score: act.score, emoji: act.emoji,
       bookingStatus: 'unbooked', geoLocation: { lat: act.lat, lng: act.lng },
     });
   });
+  if (transportSegments[2]) {
+    items.push({
+      itemId: uuidv4(), tripId, day: 3, order: 2,
+      ...transportSegments[2], bookingStatus: 'unbooked',
+      geoLocation: { lat: 35.6762, lng: 139.6503 },
+    });
+  }
 
   return items;
 }

@@ -4,29 +4,28 @@ interface RequestOptions {
   method?: string;
   body?: any;
   headers?: Record<string, string>;
-  auth?: boolean;
 }
 
-let accessToken: string | null = null;
+let currentUserId: string | null = null;
 
-export function setAccessToken(token: string | null) {
-  accessToken = token;
+export function setUserId(id: string | null) {
+  currentUserId = id;
 }
 
-export function getAccessToken(): string | null {
-  return accessToken;
+export function getCurrentUserId(): string | null {
+  return currentUserId;
 }
 
 async function request(endpoint: string, options: RequestOptions = {}) {
-  const { method = 'GET', body, headers = {}, auth = true } = options;
+  const { method = 'GET', body, headers = {} } = options;
 
   const reqHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
     ...headers,
   };
 
-  if (auth && accessToken) {
-    reqHeaders['Authorization'] = `Bearer ${accessToken}`;
+  if (currentUserId) {
+    reqHeaders['x-user-id'] = currentUserId;
   }
 
   const response = await fetch(`${config.apiBaseUrl}${endpoint}`, {
@@ -43,30 +42,6 @@ async function request(endpoint: string, options: RequestOptions = {}) {
 
   return data;
 }
-
-// --- Auth API ---
-export const authApi = {
-  signUp: (email: string, password: string, givenName?: string, familyName?: string) =>
-    request('/auth/signup', {
-      method: 'POST',
-      auth: false,
-      body: { email, password, givenName, familyName },
-    }),
-
-  confirmSignUp: (email: string, code: string) =>
-    request('/auth/confirm', {
-      method: 'POST',
-      auth: false,
-      body: { email, code },
-    }),
-
-  login: (email: string, password: string) =>
-    request('/auth/login', {
-      method: 'POST',
-      auth: false,
-      body: { email, password },
-    }),
-};
 
 // --- Users API ---
 export const usersApi = {
@@ -135,6 +110,31 @@ export const bookingsApi = {
   get: (bookingId: string) => request(`/bookings/${bookingId}`),
 
   list: () => request('/bookings'),
+};
+
+// --- Prep API ---
+export const prepApi = {
+  getState: (tripId: string) => request(`/prep/${tripId}`),
+  updateItem: (tripId: string, itemId: string, completed: boolean) =>
+    request(`/prep/${tripId}/${itemId}`, { method: 'PUT', body: { completed } }),
+};
+
+// --- Expenses API ---
+export const expensesApi = {
+  list: (tripId: string) => request(`/trips/${tripId}/expenses`),
+  create: (tripId: string, data: { category: string; amount: number; description?: string; date?: string }) =>
+    request(`/trips/${tripId}/expenses`, { method: 'POST', body: data }),
+  remove: (tripId: string, expenseId: string) =>
+    request(`/trips/${tripId}/expenses/${expenseId}`, { method: 'DELETE' }),
+};
+
+// --- Memories API ---
+export const memoriesApi = {
+  list: (tripId: string) => request(`/trips/${tripId}/memories`),
+  create: (tripId: string, data: { imageUrl: string; caption: string; day: number; lat?: number; lng?: number }) =>
+    request(`/trips/${tripId}/memories`, { method: 'POST', body: data }),
+  remove: (tripId: string, memoryId: string) =>
+    request(`/trips/${tripId}/memories/${memoryId}`, { method: 'DELETE' }),
 };
 
 // --- Feedback API ---

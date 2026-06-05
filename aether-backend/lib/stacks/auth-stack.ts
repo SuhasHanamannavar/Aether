@@ -1,13 +1,17 @@
-import { CfnOutput, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
+import { CfnOutput, Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import {
   UserPool,
   UserPoolClient,
+  UserPoolOperation,
   AccountRecovery,
   UserPoolEmail,
   OAuthScope,
   ClientAttributes,
   StringAttribute,
 } from 'aws-cdk-lib/aws-cognito';
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
+import { Runtime } from 'aws-cdk-lib/aws-lambda';
+import { RetentionDays } from 'aws-cdk-lib/aws-logs';
 import { Construct } from 'constructs';
 
 interface AuthStackProps extends StackProps {
@@ -68,6 +72,23 @@ export class AuthStack extends Stack {
       readAttributes: new ClientAttributes().withStandardAttributes({ email: true, givenName: true, familyName: true }),
       writeAttributes: new ClientAttributes().withStandardAttributes({ email: true, givenName: true, familyName: true }),
     });
+
+    // --- Auto-Confirm Lambda ---
+    const autoConfirmLambda = new NodejsFunction(this, 'AutoConfirm', {
+      functionName: `${props.appName}AutoConfirm`,
+      entry: 'lambdas/auto-confirm/index.ts',
+      runtime: Runtime.NODEJS_22_X,
+      timeout: Duration.seconds(30),
+      bundling: {
+        minify: true,
+        sourceMap: true,
+        target: 'node22',
+        externalModules: ['@aws-sdk/*'],
+      },
+      logRetention: RetentionDays.ONE_WEEK,
+    });
+
+    this.userPool.addTrigger(UserPoolOperation.POST_CONFIRMATION, autoConfirmLambda);
 
     new CfnOutput(this, 'UserPoolId', { value: this.userPool.userPoolId });
     new CfnOutput(this, 'UserPoolClientId', { value: this.userPoolClient.userPoolClientId });

@@ -10,4 +10,9 @@ export const config = {
     region: 'us-east-1',
     domain: 'zelo.auth.us-east-1.amazoncognito.com',
   },
+  awsLocation: {
+    region: process.env.EXPO_PUBLIC_AWS_REGION || 'us-east-1',
+    apiKey: process.env.EXPO_PUBLIC_AWS_LOCATION_API_KEY || '',
+    mapStyle: 'Standard',
+  },
 };

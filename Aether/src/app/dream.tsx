@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,12 +9,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import Animated, { FadeInUp } from 'react-native-reanimated';
-import { colors, spacing, borderRadius, typography, shadows } from '../theme/tokens';
-import Button from '../components/Button';
-import StaggerContainer from '../components/StaggerContainer';
+import Animated, { ZoomInUp } from 'react-native-reanimated';
+import { colors, spacing, borderRadius, typography } from '../theme/tokens';
+import { cardEntrance, sectionEntrance, mapEntrance } from '../theme/animations';
+import HeroCtaCard from '../components/HeroCtaCard';
+import SuggestionCard from '../components/SuggestionCard';
+import ActiveTripBanner from '../components/ActiveTripBanner';
+import QuickActionGrid from '../components/QuickActionGrid';
+import { useTrip } from '../context/TripContext';
+import { tripsApi } from '../services/api';
 
 const { width } = Dimensions.get('window');
+const CARD_WIDTH = width * 0.6;
 
 const suggestedTrips = [
   {
@@ -44,9 +50,9 @@ const suggestedTrips = [
 ];
 
 const quickActions = [
-  { emoji: '✈️', label: 'Past Trips', color: colors.primaryLight },
-  { emoji: '💡', label: 'Inspiration', color: colors.secondary },
-  { emoji: '⚙️', label: 'Settings', color: colors.accent },
+  { id: 'past', emoji: '✈️', label: 'Past Trips', color: colors.primaryLight },
+  { id: 'inspire', emoji: '💡', label: 'Inspiration', color: colors.secondary },
+  { id: 'settings', emoji: '⚙️', label: 'Settings', color: colors.accent },
 ];
 
 function getGreeting(): string {
@@ -67,7 +73,34 @@ function getGreetingEmoji(): string {
 
 export default function DreamScreen() {
   const router = useRouter();
+  const { trip } = useTrip();
   const greeting = useMemo(() => getGreeting(), []);
+  const [activeTrip, setActiveTrip] = useState<any>(null);
+
+  useEffect(() => {
+    if (trip.tripId) {
+      setActiveTrip(trip);
+      return;
+    }
+    (async () => {
+      try {
+        const trips = await tripsApi.list('active');
+        if (trips && trips.length > 0) setActiveTrip(trips[0]);
+      } catch { /* silent */ }
+    })();
+  }, [trip.tripId]);
+
+  const handleQuickAction = (id: string) => {
+    if (id === 'past') router.push('/past-trips' as any);
+  };
+
+  const handleTripPress = () => {
+    if (!activeTrip?.dateStart) { router.push('/new-trip'); return; }
+    const daysUntil = Math.ceil((new Date(activeTrip.dateStart).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    if (daysUntil <= 2) { router.push('/prep-hub' as any); return; }
+    if (daysUntil > 20) { router.push('/trip-dashboard' as any); return; }
+    router.push('/prep-hub' as any);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -76,8 +109,9 @@ export default function DreamScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Greeting */}
         <Animated.View
-          entering={FadeInUp.duration(600).springify()}
+          entering={ZoomInUp.duration(500).springify().damping(16)}
           style={styles.topSection}
         >
           <View style={styles.greetingRow}>
@@ -86,117 +120,87 @@ export default function DreamScreen() {
             </View>
             <View style={styles.greetingText}>
               <Text style={styles.greetingLabel}>{greeting}</Text>
-              <Text style={styles.greetingName}>Traveler</Text>
+              <Text style={styles.greetingName}>{activeTrip?.destination || 'Traveler'}</Text>
             </View>
           </View>
-
           <Text style={styles.title}>Where will the wind take you?</Text>
         </Animated.View>
 
-        <Animated.View
-          entering={FadeInUp.duration(500).delay(150).springify()}
-          style={styles.heroCard}
-        >
-          <View style={styles.heroBackground} />
-          <View style={styles.heroContent}>
-            <Text style={styles.heroEmoji}>🌍</Text>
-            <Text style={styles.heroTitle}>Ready for your next adventure?</Text>
-            <Text style={styles.heroDesc}>
-              Tell us where you want to go, and we'll build the perfect trip
-            </Text>
-            <Button
-              title="Start New Trip"
-              onPress={() => router.push('/new-trip')}
-              variant="secondary"
-              size="md"
-              style={styles.heroBtn}
+        {activeTrip ? (
+          <Animated.View
+            entering={cardEntrance.delay(100)}
+            style={styles.bannerSection}
+          >
+            <ActiveTripBanner
+              destination={activeTrip.destination || 'Your Trip'}
+              daysUntil={activeTrip.dateStart ? Math.ceil((new Date(activeTrip.dateStart).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) : 0}
+              onPress={handleTripPress}
             />
-          </View>
+          </Animated.View>
+        ) : null}
+
+        {/* Hero CTA */}
+        <Animated.View
+          entering={cardEntrance.delay(200)}
+          style={styles.heroSection}
+        >
+          <HeroCtaCard
+            title="Ready for your next adventure?"
+            subtitle="Tell us where you want to go, and we'll build the perfect trip"
+            onPress={() => router.push('/new-trip')}
+          />
         </Animated.View>
 
-        <View style={styles.suggestedSection}>
-          <Animated.View
-            entering={FadeInUp.duration(400).delay(250)}
-            style={styles.sectionHeader}
-          >
+        {/* Suggested Trips */}
+        <Animated.View
+          entering={sectionEntrance.delay(280)}
+          style={styles.suggestedSection}
+        >
+          <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Suggested for you</Text>
-            <TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/past-trips' as any)}>
               <Text style={styles.seeAllText}>See all</Text>
             </TouchableOpacity>
-          </Animated.View>
-
+          </View>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.suggestedScroll}
-            snapToInterval={width * 0.6 + spacing.lg}
+            snapToInterval={CARD_WIDTH + spacing.lg}
             decelerationRate="fast"
           >
-            <StaggerContainer
-              staggerDelay={80}
-              duration={350}
-              index={3}
-              style={styles.suggestedRow}
-            >
-              {suggestedTrips.map((trip) => (
-                <TouchableOpacity
-                  key={trip.id}
-                  activeOpacity={0.9}
-                  style={[styles.suggestedCard, { width: width * 0.6 }]}
-                >
-                  <View
-                    style={[
-                      styles.suggestedAccent,
-                      { backgroundColor: trip.color },
-                    ]}
-                  />
-                  <View style={styles.suggestedContent}>
-                    <Text style={styles.suggestedEmoji}>{trip.emoji}</Text>
-                    <Text style={styles.suggestedTitle}>
-                      {trip.destination}
-                    </Text>
-                    <Text style={styles.suggestedSubtitle}>
-                      {trip.subtitle}
-                    </Text>
-                    <View style={styles.suggestedScore}>
-                      <Text style={styles.scoreLabel}>Match</Text>
-                      <View style={styles.scoreBarBg}>
-                        <View
-                          style={[
-                            styles.scoreBarFill,
-                            {
-                              width: `${trip.score}%`,
-                              backgroundColor: trip.color,
-                            },
-                          ]}
-                        />
-                      </View>
-                      <Text style={styles.scoreValue}>{trip.score}%</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </StaggerContainer>
+            {suggestedTrips.map((trip, index) => (
+              <Animated.View
+                key={trip.id}
+                entering={cardEntrance.delay(350 + index * 80)}
+              >
+                <SuggestionCard
+                  destination={trip.destination}
+                  emoji={trip.emoji}
+                  subtitle={trip.subtitle}
+                  score={trip.score}
+                  color={trip.color}
+                  width={CARD_WIDTH}
+                  onPress={() => router.push('/new-trip')}
+                />
+              </Animated.View>
+            ))}
           </ScrollView>
-        </View>
+        </Animated.View>
 
+        {/* Quick Actions */}
         <Animated.View
-          entering={FadeInUp.duration(400).delay(350)}
+          entering={cardEntrance.delay(450)}
           style={styles.actionsSection}
         >
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionsRow}>
-            {quickActions.map((action) => (
-              <TouchableOpacity
-                key={action.label}
-                style={[styles.actionCard, { borderTopColor: action.color }]}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.actionEmoji}>{action.emoji}</Text>
-                <Text style={styles.actionLabel}>{action.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <Text style={[styles.sectionTitle, { paddingHorizontal: spacing.xl }]}>
+            Quick Actions
+          </Text>
+          <QuickActionGrid
+            actions={quickActions}
+            onAction={handleQuickAction}
+            style={styles.actionsGrid}
+          />
         </Animated.View>
       </ScrollView>
     </SafeAreaView>
@@ -206,7 +210,7 @@ export default function DreamScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#2D4A2D',
   },
   scroll: {
     flex: 1,
@@ -217,7 +221,6 @@ const styles = StyleSheet.create({
   topSection: {
     paddingTop: spacing.lg,
     paddingHorizontal: spacing.xl,
-    marginBottom: spacing.xl,
   },
   greetingRow: {
     flexDirection: 'row',
@@ -228,7 +231,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: colors.borderLight,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
@@ -240,51 +243,30 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   greetingLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.6)',
+    fontWeight: '500',
   },
   greetingName: {
-    ...typography.bodyBold,
-    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
     marginTop: -2,
   },
   title: {
-    ...typography.display,
-    color: colors.text,
-  },
-  heroCard: {
-    marginHorizontal: spacing.xl,
-    borderRadius: borderRadius.xl,
-    overflow: 'hidden',
-    ...shadows.lg,
-  },
-  heroBackground: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: colors.primary,
-  },
-  heroContent: {
-    padding: spacing.xxl,
-    alignItems: 'center',
-  },
-  heroEmoji: {
-    fontSize: 48,
-    marginBottom: spacing.lg,
-  },
-  heroTitle: {
-    ...typography.h2,
+    fontSize: 34,
+    fontWeight: '700',
     color: '#FFFFFF',
-    textAlign: 'center',
+    lineHeight: 40,
+    letterSpacing: -0.3,
   },
-  heroDesc: {
-    ...typography.body,
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center',
-    marginTop: spacing.sm,
-  },
-  heroBtn: {
+  bannerSection: {
+    paddingHorizontal: spacing.xl,
     marginTop: spacing.xl,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderColor: '#FFFFFF',
+  },
+  heroSection: {
+    paddingHorizontal: spacing.xl,
+    marginTop: spacing.xl,
   },
   suggestedSection: {
     marginTop: spacing.xxl,
@@ -297,95 +279,23 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   sectionTitle: {
-    ...typography.h3,
-    color: colors.text,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   seeAllText: {
-    ...typography.captionBold,
+    fontSize: 13,
+    fontWeight: '600',
     color: colors.accent,
   },
   suggestedScroll: {
     paddingLeft: spacing.xl,
-    paddingRight: spacing.xl,
-  },
-  suggestedRow: {
-    flexDirection: 'row',
     gap: spacing.lg,
-  },
-  suggestedCard: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.xl,
-    overflow: 'hidden',
-    ...shadows.md,
-  },
-  suggestedAccent: {
-    height: 4,
-  },
-  suggestedContent: {
-    padding: spacing.xl,
-  },
-  suggestedEmoji: {
-    fontSize: 36,
-    marginBottom: spacing.md,
-  },
-  suggestedTitle: {
-    ...typography.h3,
-    color: colors.text,
-  },
-  suggestedSubtitle: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: spacing.xs,
-  },
-  suggestedScore: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.lg,
-    gap: spacing.sm,
-  },
-  scoreLabel: {
-    ...typography.small,
-    color: colors.textTertiary,
-  },
-  scoreBarBg: {
-    flex: 1,
-    height: 4,
-    backgroundColor: colors.borderLight,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  scoreBarFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  scoreValue: {
-    ...typography.captionBold,
-    color: colors.text,
   },
   actionsSection: {
     marginTop: spacing.xxl,
-    paddingHorizontal: spacing.xl,
   },
-  actionsRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
+  actionsGrid: {
     marginTop: spacing.lg,
-  },
-  actionCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    alignItems: 'center',
-    borderTopWidth: 3,
-    ...shadows.sm,
-  },
-  actionEmoji: {
-    fontSize: 24,
-    marginBottom: spacing.sm,
-  },
-  actionLabel: {
-    ...typography.captionBold,
-    color: colors.textSecondary,
   },
 });

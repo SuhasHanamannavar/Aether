@@ -1,7 +1,7 @@
 import { CfnOutput, Stack, StackProps } from 'aws-cdk-lib';
 import { UserPool, UserPoolClient, CfnIdentityPool } from 'aws-cdk-lib/aws-cognito';
 import { AttributeType, ProjectionType } from 'aws-cdk-lib/aws-dynamodb';
-import { RestApi, CognitoUserPoolsAuthorizer, AuthorizationType } from 'aws-cdk-lib/aws-apigateway';
+import { RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { Construct } from 'constructs';
 import { ApiLambda, configureCors } from '../constructs/api-lambda';
 import { DynamoTable } from '../constructs/dynamo-table';
@@ -14,7 +14,6 @@ interface UserStackProps extends StackProps {
 
 export class UserStack extends Stack {
   public readonly api: RestApi;
-  public readonly authorizer: CognitoUserPoolsAuthorizer;
 
   constructor(scope: Construct, id: string, props: UserStackProps) {
     super(scope, id, props);
@@ -26,12 +25,6 @@ export class UserStack extends Stack {
       deployOptions: { stageName: 'v1' },
     });
     configureCors(this.api);
-
-    // --- Cognito Authorizer ---
-    this.authorizer = new CognitoUserPoolsAuthorizer(this, 'UserPoolAuthorizer', {
-      cognitoUserPools: [props.userPool],
-      authorizerName: `${props.appName}Authorizer`,
-    });
 
     // --- DynamoDB: Users ---
     const usersTable = new DynamoTable(this, 'UsersTable', {
@@ -78,27 +71,23 @@ export class UserStack extends Stack {
     const usersResource = this.api.root.addResource('users');
     const userResource = usersResource.addResource('{userId}');
 
-    usersResource.addMethod('POST', userService.integration, {
-      authorizer: this.authorizer,
-      authorizationType: AuthorizationType.COGNITO,
-    });
+    usersResource.addMethod('POST', userService.integration);
 
-    userResource.addMethod('GET', userService.integration, {
-      authorizer: this.authorizer,
-      authorizationType: AuthorizationType.COGNITO,
-    });
+    userResource.addMethod('GET', userService.integration);
 
-    userResource.addMethod('PUT', userService.integration, {
-      authorizer: this.authorizer,
-      authorizationType: AuthorizationType.COGNITO,
-    });
+    userResource.addMethod('PUT', userService.integration);
 
     const integrationsResource = userResource.addResource('integrations');
-    integrationsResource.addMethod('PUT', userService.integration, {
-      authorizer: this.authorizer,
-      authorizationType: AuthorizationType.COGNITO,
-    });
+    integrationsResource.addMethod('PUT', userService.integration);
 
     new CfnOutput(this, 'ApiUrl', { value: this.api.url });
+    new CfnOutput(this, 'ApiId', {
+      value: this.api.restApiId,
+      exportName: `${props.appName}ApiId`,
+    });
+    new CfnOutput(this, 'ApiRootResourceId', {
+      value: this.api.restApiRootResourceId,
+      exportName: `${props.appName}ApiRootResourceId`,
+    });
   }
 }

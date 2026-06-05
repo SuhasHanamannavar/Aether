@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,55 +11,164 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, {
   FadeInUp,
-  FadeInDown,
+  FadeOutUp,
+  ZoomIn,
+  StretchInY,
   withTiming,
   useSharedValue,
   useAnimatedStyle,
   withDelay,
   withSpring,
-  runOnJS,
+  withSequence,
+  Easing,
 } from 'react-native-reanimated';
 import { colors, spacing, borderRadius, typography, shadows } from '../theme/tokens';
+import { cardEntrance, sectionEntrance } from '../theme/animations';
 import Button from '../components/Button';
-import StaggerContainer from '../components/StaggerContainer';
+import BottomSheet from '../components/BottomSheet';
+import { useUser } from '../context/UserContext';
+import { useTrip } from '../context/TripContext';
+import { bookingsApi, tripsApi } from '../services/api';
 
 const { width } = Dimensions.get('window');
 
-const bookingItems = [
-  { emoji: '✈️', label: 'JAL 42 • Tokyo', price: '$680', id: 'f1' },
-  { emoji: '🏨', label: 'Shinjuku Granbell • 3 nights', price: '$630', id: 'h1' },
-  { emoji: '🍜', label: 'Ramen Tour • Oct 14', price: '$45', id: 'a1' },
-  { emoji: '🍣', label: 'Sushi Saito Reservation', price: '$120', id: 'a2' },
-  { emoji: '🚄', label: 'Shinkansen • Tokyo → Kyoto', price: '$110', id: 'a3' },
-  { emoji: '🍵', label: 'Tea Ceremony Experience', price: '$55', id: 'a4' },
+type ItemType = 'flight' | 'hotel' | 'activity' | 'dining';
+
+interface BookingItem {
+  id: string;
+  emoji: string;
+  label: string;
+  price: string;
+  priceNum: number;
+  type: ItemType;
+}
+
+const typeConfig: Record<ItemType, { color: string; label: string }> = {
+  flight: { color: '#41B3A3', label: 'Flights' },
+  hotel: { color: '#E8A87C', label: 'Hotels' },
+  activity: { color: '#1A1A2E', label: 'Activities' },
+  dining: { color: '#F59E0B', label: 'Dining' },
+};
+
+const defaultItems: BookingItem[] = [
+  { emoji: '✈️', label: 'JAL 42 • Tokyo (Narita)', price: '$680', priceNum: 680, id: 'f1', type: 'flight' },
+  { emoji: '🏨', label: 'Shinjuku Granbell • 3 nights', price: '$630', priceNum: 630, id: 'h1', type: 'hotel' },
+  { emoji: '🍜', label: 'Evening Ramen Tour • Oct 14', price: '$45', priceNum: 45, id: 'a1', type: 'activity' },
+  { emoji: '🍣', label: 'Sushi Saito Reservation', price: '$120', priceNum: 120, id: 'a2', type: 'dining' },
+  { emoji: '🚄', label: 'Shinkansen • Tokyo → Kyoto', price: '$110', priceNum: 110, id: 'a3', type: 'activity' },
+  { emoji: '🍵', label: 'Tea Ceremony Experience', price: '$55', priceNum: 55, id: 'a4', type: 'activity' },
 ];
+
+function ConfettiParticle({ index }: { index: number }) {
+  const size = 6 + Math.random() * 8;
+  const startX = Math.random() * width;
+  const colors = ['#E8A87C', '#41B3A3', '#F59E0B', '#10B981', '#FFFFFF'];
+  const color = colors[index % colors.length];
+  const duration = 600 + Math.random() * 600;
+  const delay = Math.random() * 300;
+
+  const particleStyle = useAnimatedStyle(() => ({}));
+
+  return (
+    <Animated.View
+      entering={FadeInUp.duration(duration).delay(delay).springify()}
+      exiting={FadeOutUp.duration(300)}
+      style={[
+        styles.particle,
+        {
+          width: size,
+          height: size * 1.2,
+          backgroundColor: color,
+          left: startX,
+          borderRadius: index % 2 === 0 ? size / 2 : 2,
+        },
+      ]}
+    />
+  );
+}
 
 export default function BookingScreen() {
   const router = useRouter();
-  const [step, setStep] = useState<'summary' | 'success'>('summary');
-  const checkScale = useSharedValue(0);
-  const checkOpacity = useSharedValue(0);
+  const { userId } = useUser();
+  const { trip, setDiyBooking } = useTrip();
+  const [step, setStep] = useState<'summary' | 'success' | 'diy-success'>('summary');
+  const [items, setItems] = useState<BookingItem[]>(defaultItems);
+  const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
+  const [confirming, setConfirming] = useState(false);
+  const [showSkipSheet, setShowSkipSheet] = useState(false);
+  const [diySuccess, setDiySuccess] = useState(false);
 
-  const handleConfirmBooking = () => {
+  const checkScale = useSharedValue(0);
+  const checkRotate = useSharedValue(0);
+
+  const handleRemoveItem = useCallback((id: string) => {
+    setRemovedIds((prev) => new Set(prev).add(id));
+  }, []);
+
+  const visibleItems = items.filter((i) => !removedIds.has(i.id));
+  const subtotal = visibleItems.reduce((sum, i) => sum + i.priceNum, 0);
+  const tax = Math.round(subtotal * 0.075);
+  const total = subtotal + tax;
+
+  const handleConfirmBooking = async () => {
+    if (!userId || confirming) return;
+    setConfirming(true);
+    try {
+      const booking = await bookingsApi.create({
+        tripId: trip.tripId || 'unknown',
+        items: visibleItems,
+        subtotal,
+        taxes: tax,
+        total,
+        paymentMethod: 'card',
+      });
+      await bookingsApi.confirm(booking.bookingId);
+    } catch { /* silent */ }
+    setConfirming(false);
     setStep('success');
-    checkScale.value = withDelay(300, withSpring(1, { damping: 10, stiffness: 100 }));
-    checkOpacity.value = withDelay(300, withTiming(1, { duration: 400 }));
+    checkScale.value = withSequence(
+      withDelay(200, withSpring(0, { damping: 8, stiffness: 200 })),
+      withSpring(1, { damping: 8, stiffness: 120 })
+    );
+    checkRotate.value = withDelay(200, withTiming(360, {
+      duration: 600,
+      easing: Easing.out(Easing.exp),
+    }));
+  };
+
+  const handleSkipBooking = async () => {
+    setDiyBooking(true);
+    if (trip.tripId) {
+      try { await tripsApi.update(trip.tripId, { diyBooking: true }); } catch {}
+    }
+    setShowSkipSheet(false);
+    setStep('diy-success');
   };
 
   const checkStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: checkScale.value }],
-    opacity: checkOpacity.value,
+    transform: [
+      { scale: checkScale.value },
+      { rotate: `${checkRotate.value}deg` },
+    ],
   }));
 
   if (step === 'success') {
     return (
       <SafeAreaView style={styles.successContainer}>
-        <Animated.View entering={FadeInUp.duration(500)} style={styles.successContent}>
+        <View style={styles.confettiLayer} pointerEvents="none">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <ConfettiParticle key={i} index={i} />
+          ))}
+        </View>
+        <Animated.View
+          entering={ZoomIn.duration(400).springify().damping(14)}
+          style={styles.successContent}
+        >
           <Animated.View style={[styles.checkCircle, checkStyle]}>
             <Text style={styles.checkMark}>✓</Text>
           </Animated.View>
 
-          <Animated.View entering={FadeInUp.duration(400).delay(600).springify()}>
+          <Animated.View entering={FadeInUp.duration(300).delay(500).springify()}>
             <Text style={styles.successTitle}>All Booked!</Text>
             <Text style={styles.successDesc}>
               Your trip to Japan is confirmed.{'\n'}Everything is saved to your itinerary.
@@ -67,7 +176,7 @@ export default function BookingScreen() {
           </Animated.View>
 
           <Animated.View
-            entering={FadeInDown.duration(400).delay(900).springify()}
+            entering={StretchInY.duration(350).delay(700).springify().damping(14)}
             style={styles.successCards}
           >
             <View style={styles.successCard}>
@@ -84,12 +193,19 @@ export default function BookingScreen() {
         </Animated.View>
 
         <Animated.View
-          entering={FadeInDown.duration(400).delay(1200)}
+          entering={FadeInUp.duration(300).delay(1000)}
           style={styles.successBottom}
         >
           <Button
             title="Go to My Trip"
-            onPress={() => router.replace('/dream')}
+            onPress={() => {
+              if (trip.dateStart) {
+                const daysUntil = Math.ceil((new Date(trip.dateStart).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+              if (daysUntil <= 2) { router.replace('/prep-hub' as any); return; }
+              if (daysUntil > 20) { router.replace('/trip-dashboard' as any); return; }
+              }
+              router.replace('/dream');
+            }}
             size="lg"
             style={styles.successBtn}
           />
@@ -97,6 +213,65 @@ export default function BookingScreen() {
       </SafeAreaView>
     );
   }
+
+  if (step === 'diy-success') {
+    return (
+      <SafeAreaView style={styles.successContainer}>
+        <Animated.View
+          entering={ZoomIn.duration(400).springify().damping(14)}
+          style={styles.successContent}
+        >
+          <Animated.View style={[styles.checkCircle, { backgroundColor: colors.primary }]}>
+            <Text style={styles.checkMark}>✓</Text>
+          </Animated.View>
+
+          <Animated.View entering={FadeInUp.duration(300).delay(500).springify()}>
+            <Text style={styles.successTitle}>Trip Saved!</Text>
+            <Text style={styles.successDesc}>
+              Your itinerary is ready. You can book items later when you're ready.
+            </Text>
+          </Animated.View>
+
+          <Animated.View
+            entering={StretchInY.duration(350).delay(700).springify().damping(14)}
+            style={styles.successCards}
+          >
+            <View style={styles.successCard}>
+              <Text style={styles.successCardEmoji}>📋</Text>
+              <Text style={styles.successCardTitle}>Itinerary Ready</Text>
+              <Text style={styles.successCardDesc}>Full schedule with all your plans</Text>
+            </View>
+            <View style={styles.successCard}>
+              <Text style={styles.successCardEmoji}>🗺️</Text>
+              <Text style={styles.successCardTitle}>Self-Arranged</Text>
+              <Text style={styles.successCardDesc}>Add bookings anytime you want</Text>
+            </View>
+          </Animated.View>
+        </Animated.View>
+
+        <Animated.View
+          entering={FadeInUp.duration(300).delay(1000)}
+          style={styles.successBottom}
+        >
+          <Button
+            title="Go to My Trip"
+            onPress={() => {
+              if (trip.dateStart) {
+                const daysUntil = Math.ceil((new Date(trip.dateStart).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+              if (daysUntil <= 2) { router.replace('/prep-hub' as any); return; }
+              if (daysUntil > 20) { router.replace('/trip-dashboard' as any); return; }
+              }
+              router.replace('/dream');
+            }}
+            size="lg"
+            style={styles.successBtn}
+          />
+        </Animated.View>
+      </SafeAreaView>
+    );
+  }
+
+  const sections = ['flight', 'hotel', 'activity', 'dining'] as ItemType[];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -108,50 +283,105 @@ export default function BookingScreen() {
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <StaggerContainer staggerDelay={80} duration={350}>
-          {bookingItems.map((item) => (
-            <View key={item.id} style={styles.bookingItem}>
-              <Text style={styles.bookingEmoji}>{item.emoji}</Text>
-              <View style={styles.bookingInfo}>
-                <Text style={styles.bookingLabel}>{item.label}</Text>
+        {sections.map((type) => {
+          const sectionItems = visibleItems.filter((i) => i.type === type);
+          if (sectionItems.length === 0) return null;
+          const config = typeConfig[type];
+          return (
+            <Animated.View key={type} entering={sectionEntrance}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.sectionDot, { backgroundColor: config.color }]} />
+                <Text style={styles.sectionLabel}>{config.label}</Text>
+                <Text style={styles.sectionCount}>{sectionItems.length}</Text>
               </View>
-              <Text style={styles.bookingPrice}>{item.price}</Text>
-            </View>
-          ))}
-        </StaggerContainer>
+              {sectionItems.map((item) => (
+                <Animated.View key={item.id} entering={cardEntrance}>
+                  <View style={[styles.bookingItem, { borderLeftColor: config.color }]}>
+                    <Text style={styles.bookingEmoji}>{item.emoji}</Text>
+                    <View style={styles.bookingInfo}>
+                      <Text style={styles.bookingLabel}>{item.label}</Text>
+                    </View>
+                    <Text style={[styles.bookingPrice, { color: config.color }]}>{item.price}</Text>
+                    <TouchableOpacity
+                      onPress={() => handleRemoveItem(item.id)}
+                      style={styles.removeBtn}
+                    >
+                      <Text style={styles.removeBtnText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                </Animated.View>
+              ))}
+            </Animated.View>
+          );
+        })}
 
         <View style={styles.divider} />
 
         <View style={styles.totalSection}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Subtotal</Text>
-            <Text style={styles.totalValue}>$1,640</Text>
+            <Text style={styles.totalValue}>${subtotal.toLocaleString()}</Text>
           </View>
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Taxes & fees</Text>
-            <Text style={styles.totalValue}>$124</Text>
+            <Text style={styles.totalLabel}>Taxes & fees (7.5%)</Text>
+            <Text style={styles.totalValue}>${tax.toLocaleString()}</Text>
           </View>
           <View style={[styles.totalRow, styles.grandTotal]}>
             <Text style={styles.grandTotalLabel}>Total</Text>
-            <Text style={styles.grandTotalValue}>$1,764</Text>
+            <Text style={styles.grandTotalValue}>${total.toLocaleString()}</Text>
           </View>
         </View>
       </ScrollView>
 
-      <View style={styles.bottomSection}>
+      <Animated.View
+        entering={FadeInUp.duration(300)}
+        style={styles.bottomSection}
+      >
         <View style={styles.paymentRow}>
           <Text style={styles.paymentLabel}>Pay with</Text>
           <View style={styles.paymentMethod}>
+            <Text style={styles.paymentCardIcon}>💳</Text>
             <Text style={styles.paymentMethodText}>•••• 4242</Text>
+            <Text style={styles.paymentExpiry}>09/27</Text>
           </View>
         </View>
+        <TouchableOpacity
+          onPress={() => setShowSkipSheet(true)}
+          style={styles.skipBookingBtn}
+        >
+          <Text style={styles.skipBookingText}>Skip Booking -- Save trip without payment</Text>
+        </TouchableOpacity>
         <Button
-          title="Confirm & Book All"
+          title={`Confirm & Pay $${total.toLocaleString()}`}
           onPress={handleConfirmBooking}
           size="lg"
           style={styles.confirmBtn}
         />
-      </View>
+      </Animated.View>
+      <BottomSheet
+        visible={showSkipSheet}
+        title="Skip Booking?"
+        onClose={() => setShowSkipSheet(false)}
+      >
+        <Text style={styles.skipSheetText}>
+          Your trip will be saved with your itinerary ready.{'\n'}
+          You can book individual items later whenever you're ready.
+        </Text>
+        <Button
+          title="Yes, Save Without Payment"
+          onPress={handleSkipBooking}
+          variant="secondary"
+          size="lg"
+          style={styles.skipSheetBtn}
+        />
+        <Button
+          title="Go Back"
+          onPress={() => setShowSkipSheet(false)}
+          variant="ghost"
+          size="md"
+          style={styles.skipSheetCancel}
+        />
+      </BottomSheet>
     </SafeAreaView>
   );
 }
@@ -184,6 +414,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.lg,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    marginTop: spacing.lg,
+    gap: spacing.sm,
+  },
+  sectionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  sectionLabel: {
+    ...typography.captionBold,
+    color: colors.text,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  sectionCount: {
+    ...typography.small,
+    color: colors.textTertiary,
+    backgroundColor: colors.borderLight,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+    marginLeft: 'auto',
+  },
   bookingItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -191,10 +448,12 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     borderRadius: borderRadius.md,
     marginBottom: spacing.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
     ...shadows.sm,
   },
   bookingEmoji: {
-    fontSize: 24,
+    fontSize: 22,
     marginRight: spacing.md,
   },
   bookingInfo: {
@@ -207,14 +466,29 @@ const styles = StyleSheet.create({
   bookingPrice: {
     ...typography.bodyBold,
     color: colors.text,
+    marginRight: spacing.sm,
+  },
+  removeBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.borderLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeBtnText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
   divider: {
     height: 1,
     backgroundColor: colors.border,
-    marginVertical: spacing.lg,
+    marginVertical: spacing.xl,
   },
   totalSection: {
-    gap: spacing.md,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.xs,
   },
   totalRow: {
     flexDirection: 'row',
@@ -229,7 +503,8 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   grandTotal: {
-    paddingTop: spacing.md,
+    paddingTop: spacing.lg,
+    marginTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
@@ -246,8 +521,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
+    borderTopColor: colors.border,
     gap: spacing.md,
+    ...shadows.md,
   },
   paymentRow: {
     flexDirection: 'row',
@@ -259,14 +535,24 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   paymentMethod: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.borderLight,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
     borderRadius: borderRadius.sm,
+    gap: spacing.sm,
+  },
+  paymentCardIcon: {
+    fontSize: 16,
   },
   paymentMethodText: {
     ...typography.captionBold,
     color: colors.text,
+  },
+  paymentExpiry: {
+    ...typography.small,
+    color: colors.textTertiary,
   },
   confirmBtn: {
     width: '100%',
@@ -275,11 +561,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  confettiLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    overflow: 'hidden',
+  },
+  particle: {
+    position: 'absolute',
+    top: -20,
+  },
   successContent: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.xl,
+    zIndex: 1,
   },
   checkCircle: {
     width: 100,
@@ -338,8 +637,33 @@ const styles = StyleSheet.create({
   successBottom: {
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxxl,
+    zIndex: 1,
   },
   successBtn: {
+    width: '100%',
+  },
+  skipBookingBtn: {
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  skipBookingText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textDecorationLine: 'underline',
+  },
+  skipSheetText: {
+    fontSize: 15,
+    color: colors.text,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+  },
+  skipSheetBtn: {
+    width: '100%',
+    marginBottom: spacing.sm,
+  },
+  skipSheetCancel: {
     width: '100%',
   },
 });

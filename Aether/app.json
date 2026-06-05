@@ -1,8 +1,8 @@
 {
-  "expo": {
-    "name": "Zelo",
-    "slug": "Zelo",
-    "version": "1.0.0",
+"expo": {
+  "name": "Aether",
+  "slug": "aether",
+  "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "zelo",

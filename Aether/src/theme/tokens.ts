@@ -1,21 +1,53 @@
+// Theme A — Nature Exploration (main theme)
 export const colors = {
-  primary: '#1A1A2E',
-  primaryLight: '#2D2D4A',
+  primary: '#3D5A3D',
+  primaryLight: '#5A7A5A',
   secondary: '#E8A87C',
   secondaryLight: '#F0C4A8',
-  accent: '#41B3A3',
-  accentLight: '#6ECFBF',
-  background: '#FAFAF8',
+  accent: '#E8A87C',
+  accentLight: '#F0C4A8',
+  background: '#3D5A3D',
   surface: '#FFFFFF',
   text: '#1A1A1A',
   textSecondary: '#6B7280',
   textTertiary: '#9CA3AF',
+  textInverse: '#FFFFFF',
   error: '#EF4444',
   success: '#10B981',
   warning: '#F59E0B',
   border: '#E5E7EB',
   borderLight: '#F3F4F6',
   overlay: 'rgba(0, 0, 0, 0.4)',
+} as const;
+
+// Theme B — Warm Heritage (content screens: prep, expense, feedback)
+export const heritageColors = {
+  background: '#F5EDE3',
+  surface: '#FFFFFF',
+  primary: '#4A3728',
+  secondary: '#C4956A',
+  accent: '#C4956A',
+  text: '#4A3728',
+  textSecondary: '#8B7355',
+  textTertiary: '#B8A58B',
+  textInverse: '#FFFFFF',
+  border: '#E8DDD0',
+  borderLight: '#F2EBE1',
+} as const;
+
+// Theme C — Dark Utility (maps, live mode, airport)
+export const darkColors = {
+  background: '#121212',
+  surface: 'rgba(255, 255, 255, 0.08)',
+  primary: '#1A1A1A',
+  secondary: '#7CFF6B',
+  accent: '#7CFF6B',
+  text: '#FFFFFF',
+  textSecondary: 'rgba(255, 255, 255, 0.6)',
+  textTertiary: 'rgba(255, 255, 255, 0.35)',
+  textInverse: '#1A1A1A',
+  border: 'rgba(255, 255, 255, 0.12)',
+  borderLight: 'rgba(255, 255, 255, 0.06)',
 } as const;
 
 export const spacing = {
@@ -79,4 +111,12 @@ export const animation = {
   normal: 300,
   slow: 500,
   spring: { damping: 15, stiffness: 200 },
+} as const;
+
+export const animationPresets = {
+  hover: { duration: 150, easing: 'easeOut' },
+  press: { duration: 150, spring: true, damping: 15, stiffness: 200 },
+  cardAppear: { duration: 300, easing: 'spring', damping: 18, stiffness: 180 },
+  pageTransition: { duration: 400, easing: 'easeInOut' },
+  stagger: { delay: 80 },
 } as const;

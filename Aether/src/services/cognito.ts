@@ -5,7 +5,6 @@ import {
   CognitoUserAttribute,
 } from 'amazon-cognito-identity-js';
 import { config } from '../constants/config';
-import { setAccessToken } from './api';
 
 const userPool = new CognitoUserPool({
   UserPoolId: config.cognito.userPoolId,
@@ -43,8 +42,6 @@ export const cognitoAuth = {
 
       user.authenticateUser(authDetails, {
         onSuccess: (session) => {
-          const token = session.getAccessToken().getJwtToken();
-          setAccessToken(token);
           resolve(session);
         },
         onFailure: (err) => reject(err),
@@ -55,7 +52,6 @@ export const cognitoAuth = {
     const user = userPool.getCurrentUser();
     if (user) {
       user.signOut();
-      setAccessToken(null);
     }
   },
 
@@ -71,7 +67,6 @@ export const cognitoAuth = {
       user.getSession((err: any, session: any) => {
         if (err) reject(err);
         else {
-          setAccessToken(session.getAccessToken().getJwtToken());
           resolve(session);
         }
       });

@@ -10,7 +10,7 @@ export const respond = (statusCode: number, body: any, headers?: any) => ({
 });
 
 export const getUserId = (event: any): string | undefined =>
-  event.requestContext?.authorizer?.claims?.sub;
+  event.headers?.['x-user-id'] || event.headers?.['X-User-Id'];
 
 export const parseBody = (event: any): any => {
   try { return event.body ? JSON.parse(event.body) : {}; } catch { return {}; }

@@ -16,6 +16,8 @@ const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
 const TRIPS_TABLE = process.env.TRIPS_TABLE!;
 const ITINERARY_TABLE = process.env.ITINERARY_TABLE!;
+const EXPENSES_TABLE = process.env.EXPENSES_TABLE!;
+const MEMORIES_TABLE = process.env.MEMORIES_TABLE!;
 
 export const handler = async (event: any) => {
   try {
@@ -23,7 +25,7 @@ export const handler = async (event: any) => {
     const method = event.httpMethod;
     const body = event.body ? JSON.parse(event.body) : {};
     const tripId = event.pathParameters?.tripId;
-    const authUserId = event.requestContext?.authorizer?.claims?.sub;
+    const authUserId = event.headers?.['x-user-id'] || event.headers?.['X-User-Id'];
     const queryParams = event.queryStringParameters || {};
     const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
 
@@ -42,6 +44,8 @@ export const handler = async (event: any) => {
         dateStart: body.dateStart || null,
         dateEnd: body.dateEnd || null,
         archetype: null,
+        transportMode: body.transportMode || 'fly',
+        diyBooking: body.diyBooking || false,
         status: 'draft',
         totalEstimatedCost: 0,
         createdAt: now,
@@ -86,7 +90,7 @@ export const handler = async (event: any) => {
       updates.push('#updatedAt = :updatedAt');
 
       for (const [key, value] of Object.entries(body)) {
-        if (['destination', 'vibeTags', 'budget', 'dateStart', 'dateEnd', 'archetype', 'status', 'totalEstimatedCost'].includes(key)) {
+        if (['destination', 'vibeTags', 'budget', 'dateStart', 'dateEnd', 'archetype', 'status', 'totalEstimatedCost', 'transportMode', 'diyBooking'].includes(key)) {
           updates.push(`#${key} = :${key}`);
           exprNames[`#${key}`] = key;
           exprValues[`:${key}`] = value;
@@ -187,6 +191,43 @@ export const handler = async (event: any) => {
     if (path === '/trips/{tripId}/prep' && method === 'GET') {
       const trip = await ddb.send(new GetCommand({ TableName: TRIPS_TABLE, Key: { tripId } }));
       const destination = trip.Item?.destination || 'Japan';
+      const transportMode = trip.Item?.transportMode || 'fly';
+      const transportItems: any[] = [];
+      if (transportMode === 'drive') {
+        transportItems.push(
+          { id: 'vehicle-check', title: 'Vehicle maintenance check', status: 'pending', notes: 'Oil, tires, brakes, fluids' },
+          { id: 'fuel-stops', title: 'Plan fuel stops', status: 'pending', notes: 'Mark gas stations along route' },
+          { id: 'offline-maps', title: 'Download offline maps', status: 'pending', notes: 'Navigation without data' },
+          { id: 'road-kit', title: 'Emergency road kit', status: 'pending', notes: 'Spare tire, jumper cables, first aid' },
+        );
+      } else if (transportMode === 'transit') {
+        transportItems.push(
+          { id: 'transit-pass', title: 'Get transit pass / IC card', status: 'pending', notes: 'Pre-load with sufficient balance' },
+          { id: 'route-maps', title: 'Download route maps', status: 'pending', notes: 'Station diagrams & line maps' },
+          { id: 'station-connections', title: 'Research station connections', status: 'pending', notes: 'Transfer points & walking times' },
+          { id: 'schedule-app', title: 'Install transit schedule app', status: 'pending', notes: 'Real-time departures & alerts' },
+        );
+      } else if (transportMode === 'walk') {
+        transportItems.push(
+          { id: 'walking-routes', title: 'Plan walking routes', status: 'pending', notes: 'Scenic paths & shortcuts' },
+          { id: 'footwear', title: 'Pack comfortable footwear', status: 'pending', notes: 'Walking shoes, insoles, blister care' },
+          { id: 'weather-check', title: 'Check weather conditions', status: 'pending', notes: 'Rain gear or sun protection' },
+        );
+      } else if (transportMode === 'bike') {
+        transportItems.push(
+          { id: 'bike-check', title: 'Bike maintenance check', status: 'pending', notes: 'Tires, brakes, chain, lights' },
+          { id: 'bike-routes', title: 'Plot bike-friendly routes', status: 'pending', notes: 'Cycle paths & bike lanes' },
+          { id: 'bike-lock', title: 'Pack bike lock', status: 'pending', notes: 'Secure parking at stops' },
+          { id: 'helmet', title: 'Pack helmet & safety gear', status: 'pending', notes: 'Reflective vest, lights' },
+        );
+      } else {
+        transportItems.push(
+          { id: 'flight-checkin', title: 'Check in for flights', status: 'pending', notes: 'Online check-in 24h before' },
+          { id: 'baggage', title: 'Pack baggage within limits', status: 'pending', notes: 'Check airline weight & size rules' },
+          { id: 'airport-transfer', title: 'Arrange airport transfer', status: 'pending', notes: 'Book shuttle or taxi in advance' },
+          { id: 'airport-arrival', title: 'Plan airport arrival time', status: 'pending', notes: 'Arrive 2-3h before departure' },
+        );
+      }
       return respond(200, {
         destination,
         checklist: [
@@ -194,6 +235,7 @@ export const handler = async (event: any) => {
           { id: 'passport', title: 'Passport validity', status: 'pending', notes: 'Must be valid 6 months beyond travel' },
           { id: 'insurance', title: 'Travel insurance', status: 'pending', notes: 'Recommended for medical & cancellation' },
           { id: 'vaccinations', title: 'Vaccinations', status: 'pending', notes: 'Check CDC/WHO recommendations' },
+          ...transportItems,
         ],
         etiquette: [
           'Learn basic greetings in the local language',
@@ -217,6 +259,92 @@ export const handler = async (event: any) => {
     // POST /trips/{tripId}/feedback
     if (path.includes('/feedback') && method === 'POST') {
       return respond(200, { message: 'Feedback recorded', feedbackId: uuidv4() }, headers);
+    }
+
+    // --- Expense CRUD ---
+
+    // POST /trips/{tripId}/expenses
+    if (path === '/trips/{tripId}/expenses' && method === 'POST') {
+      const expenseId = uuidv4();
+      const now = new Date().toISOString();
+      const expense = {
+        expenseId,
+        tripId,
+        userId: authUserId,
+        category: body.category || 'other',
+        amount: body.amount || 0,
+        currency: body.currency || 'USD',
+        description: body.description || '',
+        date: body.date || now.split('T')[0],
+        createdAt: now,
+      };
+      await ddb.send(new PutCommand({ TableName: EXPENSES_TABLE, Item: expense }));
+      return respond(200, expense, headers);
+    }
+
+    // GET /trips/{tripId}/expenses
+    if (path === '/trips/{tripId}/expenses' && method === 'GET') {
+      const result = await ddb.send(new QueryCommand({
+        TableName: EXPENSES_TABLE,
+        IndexName: 'ByTrip',
+        KeyConditionExpression: 'tripId = :tid',
+        ExpressionAttributeValues: { ':tid': tripId },
+        ScanIndexForward: false,
+      }));
+      return respond(200, result.Items || [], headers);
+    }
+
+    // DELETE /trips/{tripId}/expenses/{expenseId}
+    if (path === '/trips/{tripId}/expenses/{expenseId}' && method === 'DELETE') {
+      const expenseId = event.pathParameters?.expenseId;
+      await ddb.send(new DeleteCommand({
+        TableName: EXPENSES_TABLE,
+        Key: { expenseId },
+      }));
+      return respond(200, { message: 'Expense deleted' }, headers);
+    }
+
+    // --- Memory CRUD ---
+
+    // POST /trips/{tripId}/memories
+    if (path === '/trips/{tripId}/memories' && method === 'POST') {
+      const memoryId = uuidv4();
+      const now = new Date().toISOString();
+      const memory = {
+        memoryId,
+        tripId,
+        userId: authUserId,
+        imageUrl: body.imageUrl || '',
+        caption: body.caption || '',
+        day: body.day || 1,
+        lat: body.lat || null,
+        lng: body.lng || null,
+        createdAt: now,
+      };
+      await ddb.send(new PutCommand({ TableName: MEMORIES_TABLE, Item: memory }));
+      return respond(200, memory, headers);
+    }
+
+    // GET /trips/{tripId}/memories
+    if (path === '/trips/{tripId}/memories' && method === 'GET') {
+      const result = await ddb.send(new QueryCommand({
+        TableName: MEMORIES_TABLE,
+        IndexName: 'ByTrip',
+        KeyConditionExpression: 'tripId = :tid',
+        ExpressionAttributeValues: { ':tid': tripId },
+        ScanIndexForward: false,
+      }));
+      return respond(200, result.Items || [], headers);
+    }
+
+    // DELETE /trips/{tripId}/memories/{memoryId}
+    if (path === '/trips/{tripId}/memories/{memoryId}' && method === 'DELETE') {
+      const memoryId = event.pathParameters?.memoryId;
+      await ddb.send(new DeleteCommand({
+        TableName: MEMORIES_TABLE,
+        Key: { memoryId },
+      }));
+      return respond(200, { message: 'Memory deleted' }, headers);
     }
 
     return respond(404, { message: 'Route not found' }, headers);

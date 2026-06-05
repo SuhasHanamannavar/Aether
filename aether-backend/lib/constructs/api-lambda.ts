@@ -1,5 +1,5 @@
 import { Duration } from 'aws-cdk-lib';
-import { Cors, LambdaIntegration, ResourceOptions, RestApi } from 'aws-cdk-lib/aws-apigateway';
+import { Cors, IRestApi, LambdaIntegration, ResourceOptions, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { IFunction, Runtime, StartingPosition } from 'aws-cdk-lib/aws-lambda';
 import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs';
 import { RetentionDays } from 'aws-cdk-lib/aws-logs';
@@ -9,7 +9,7 @@ interface ApiLambdaProps {
   functionName: string;
   entry: string;
   environment?: Record<string, string>;
-  api: RestApi;
+  api: IRestApi;
   resourcePath: string;
   method?: string;
   allowCognitoAuth?: boolean;

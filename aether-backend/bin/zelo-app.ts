@@ -19,7 +19,7 @@ const authStack = new AuthStack(app, `${appName}AuthStack`, {
   stackName: `${appName}AuthStack`,
 });
 
-new UserStack(app, `${appName}UserStack`, {
+const userStack = new UserStack(app, `${appName}UserStack`, {
   env,
   appName,
   userPool: authStack.userPool,

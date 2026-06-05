@@ -4,31 +4,25 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import Animated, {
-  FadeInUp,
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-} from 'react-native-reanimated';
-import { colors, spacing, borderRadius, typography, shadows } from '../theme/tokens';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+import { colors, spacing, borderRadius, typography } from '../theme/tokens';
 import Button from '../components/Button';
-import StaggerContainer from '../components/StaggerContainer';
+import TravelerTypeCard from '../components/TravelerTypeCard';
+import StepProgressBar from '../components/StepProgressBar';
+import type { TravelerType } from '../components/TravelerTypeCard';
+import { useUser } from '../context/UserContext';
+import { usersApi } from '../services/api';
 
-const { width } = Dimensions.get('window');
-
-const travelerTypes = [
+const travelerTypes: TravelerType[] = [
   {
     id: 'backpacker',
     name: 'Backpacker',
     description: 'Hostels, trains, and local eats',
     emoji: '🎒',
     color: '#41B3A3',
-    accent: '#E8F5F3',
   },
   {
     id: 'luxury',
@@ -36,7 +30,6 @@ const travelerTypes = [
     description: '5-star stays and fine dining',
     emoji: '✨',
     color: '#E8A87C',
-    accent: '#FEF5EF',
   },
   {
     id: 'family',
@@ -44,7 +37,6 @@ const travelerTypes = [
     description: 'Kid-friendly fun for everyone',
     emoji: '👨‍👩‍👧‍👦',
     color: '#F59E0B',
-    accent: '#FFF8ED',
   },
   {
     id: 'adventure',
@@ -52,108 +44,79 @@ const travelerTypes = [
     description: 'Hikes, dives, and extreme sports',
     emoji: '🏔️',
     color: '#EF4444',
-    accent: '#FEF2F2',
   },
 ];
 
 export default function OnboardingScreen() {
   const router = useRouter();
+  const { userId } = useUser();
   const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const handleContinue = async () => {
+    if (!selectedType || !userId || saving) return;
+    setSaving(true);
+    try {
+      await usersApi.update(userId, { travelerType: selectedType, onboardingComplete: true });
+    } catch { /* silent */ }
+    setSaving(false);
+    router.push('/integrations');
+  };
+
+  const handleSkip = () => {
+    router.push('/integrations');
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Animated.View
-          entering={FadeInUp.duration(600).springify()}
-          style={styles.header}
-        >
-          <View style={styles.stepBadge}>
-            <Text style={styles.stepText}>Step 1 of 2</Text>
-          </View>
-          <Text style={styles.welcome}>Welcome to</Text>
-          <Text style={styles.title}>Zelo</Text>
-          <Text style={styles.subtitle}>
-            Your intelligent travel planner
-          </Text>
+        <Animated.View entering={FadeInUp.duration(500)} style={styles.topSection}>
+          <StepProgressBar currentStep={1} totalSteps={4} />
         </Animated.View>
 
-        <StaggerContainer
-          staggerDelay={100}
-          duration={400}
-          style={styles.cardsContainer}
-        >
-          {travelerTypes.map((type) => {
-            const isSelected = selectedType === type.id;
-            return (
-              <TouchableOpacity
-                key={type.id}
+        <View style={styles.headerSection}>
+          <Animated.View entering={FadeInUp.duration(500).delay(100)}>
+            <Text style={styles.title}>
+              What kind of{'\n'}traveler are you?
+            </Text>
+            <Text style={styles.subtitle}>
+              Choose your style, we'll handle the rest
+            </Text>
+          </Animated.View>
+        </View>
+
+        <View style={styles.cardsSection}>
+          {travelerTypes.map((type, index) => (
+            <Animated.View
+              key={type.id}
+              entering={FadeInUp.duration(400).delay(200 + index * 100)}
+            >
+              <TravelerTypeCard
+                type={type}
+                selected={selectedType === type.id}
                 onPress={() => setSelectedType(type.id)}
-                activeOpacity={0.9}
-                style={[
-                  styles.travelerCard,
-                  isSelected && {
-                    backgroundColor: type.accent,
-                    borderColor: type.color,
-                    borderWidth: 2,
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.cardEmojiContainer,
-                    isSelected && { backgroundColor: type.color },
-                  ]}
-                >
-                  <Text style={styles.cardEmoji}>{type.emoji}</Text>
-                </View>
-                <View style={styles.cardText}>
-                  <Text
-                    style={[
-                      styles.cardTitle,
-                      isSelected && { color: type.color },
-                    ]}
-                  >
-                    {type.name}
-                  </Text>
-                  <Text style={styles.cardDesc}>
-                    {type.description}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.cardCheck,
-                    isSelected && {
-                      backgroundColor: type.color,
-                      borderColor: type.color,
-                    },
-                  ]}
-                >
-                  <Text style={styles.checkMark}>
-                    {isSelected ? '✓' : ''}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </StaggerContainer>
+              />
+            </Animated.View>
+          ))}
+        </View>
       </View>
 
       <Animated.View
-        entering={FadeInUp.duration(400).delay(500)}
+        entering={FadeInUp.duration(400).delay(600)}
         style={styles.bottom}
       >
         <Button
-          title="Continue"
-          onPress={() => router.push('/integrations')}
-          disabled={!selectedType}
+          title={saving ? 'Saving...' : 'Continue'}
+          onPress={handleContinue}
+          disabled={!selectedType || saving}
           size="lg"
           style={styles.continueBtn}
         />
         <TouchableOpacity
-          onPress={() => router.push('/integrations')}
+          onPress={handleSkip}
           style={styles.skipRow}
         >
-          <Text style={styles.skipText}>Skip for now</Text>
+          <Text style={styles.skipText}>I'll decide later</Text>
         </TouchableOpacity>
       </Animated.View>
     </SafeAreaView>
@@ -163,96 +126,36 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#2D4A2D',
   },
   content: {
     flex: 1,
-    paddingTop: spacing.huge,
-    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
   },
-  header: {
+  topSection: {
+    paddingHorizontal: spacing.xl,
     marginBottom: spacing.xxl,
   },
-  stepBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.accentLight,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    marginBottom: spacing.lg,
-  },
-  stepText: {
-    ...typography.small,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  welcome: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    fontWeight: '500',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    marginBottom: spacing.xs,
+  headerSection: {
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.xl,
   },
   title: {
-    ...typography.display,
-    color: colors.primary,
-    marginBottom: spacing.sm,
+    fontSize: 34,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 40,
+    letterSpacing: -0.3,
   },
   subtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.6)',
+    marginTop: spacing.sm,
+    lineHeight: 22,
   },
-  cardsContainer: {
+  cardsSection: {
+    paddingHorizontal: spacing.xl,
     gap: spacing.md,
-  },
-  travelerCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1.5,
-    borderColor: colors.borderLight,
-    ...shadows.sm,
-  },
-  cardEmojiContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.borderLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.lg,
-  },
-  cardEmoji: {
-    fontSize: 22,
-  },
-  cardText: {
-    flex: 1,
-  },
-  cardTitle: {
-    ...typography.bodyBold,
-    color: colors.text,
-  },
-  cardDesc: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginTop: 2,
-  },
-  cardCheck: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkMark: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontWeight: '700',
   },
   bottom: {
     paddingHorizontal: spacing.xl,
@@ -267,7 +170,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   skipText: {
-    ...typography.body,
-    color: colors.textTertiary,
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontWeight: '500',
   },
 });

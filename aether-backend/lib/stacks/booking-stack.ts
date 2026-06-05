@@ -1,9 +1,9 @@
-import { CfnOutput, Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
+import { Duration, Fn, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import { UserPool } from 'aws-cdk-lib/aws-cognito';
 import { AttributeType, Table } from 'aws-cdk-lib/aws-dynamodb';
-import { RestApi, CognitoUserPoolsAuthorizer, AuthorizationType } from 'aws-cdk-lib/aws-apigateway';
+import { IRestApi, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { Construct } from 'constructs';
-import { ApiLambda, configureCors } from '../constructs/api-lambda';
+import { ApiLambda } from '../constructs/api-lambda';
 import { DynamoTable } from '../constructs/dynamo-table';
 import { Bucket, HttpMethods } from 'aws-cdk-lib/aws-s3';
 import { SqsDestination } from 'aws-cdk-lib/aws-lambda-destinations';
@@ -15,23 +15,15 @@ interface BookingStackProps extends StackProps {
 }
 
 export class BookingStack extends Stack {
-  public readonly api: RestApi;
+  public readonly api: IRestApi;
 
   constructor(scope: Construct, id: string, props: BookingStackProps) {
     super(scope, id, props);
 
-    this.api = new RestApi(this, 'BookingApi', {
-      restApiName: `${props.appName}BookingApi`,
-      description: 'Zelo Booking Service',
-      deployOptions: { stageName: 'v1' },
+    this.api = RestApi.fromRestApiAttributes(this, 'SharedApi', {
+      restApiId: Fn.importValue(`${props.appName}ApiId`),
+      rootResourceId: Fn.importValue(`${props.appName}ApiRootResourceId`),
     });
-    configureCors(this.api);
-
-    const authorizer = new CognitoUserPoolsAuthorizer(this, 'BookingAuthorizer', {
-      cognitoUserPools: [props.userPool],
-      authorizerName: `${props.appName}BookingAuthorizer`,
-    });
-    const auth: any = { authorizer, authorizationType: AuthorizationType.COGNITO };
 
     // --- DynamoDB: Bookings ---
     const bookingsTable = new DynamoTable(this, 'BookingsTable', {
@@ -117,11 +109,11 @@ export class BookingStack extends Stack {
 
     // /bookings
     const bookingsResource = this.api.root.addResource('bookings');
-    bookingsResource.addMethod('POST', bookingService.integration, auth);
-    bookingsResource.addMethod('GET', bookingService.integration, auth);
+    bookingsResource.addMethod('POST', bookingService.integration);
+    bookingsResource.addMethod('GET', bookingService.integration);
     const bookingResource = bookingsResource.addResource('{bookingId}');
-    bookingResource.addMethod('GET', bookingService.integration, auth);
-    bookingResource.addMethod('POST', bookingService.integration, auth); // confirm
+    bookingResource.addMethod('GET', bookingService.integration);
+    bookingResource.addMethod('POST', bookingService.integration); // confirm
 
     // /webhooks/stripe
     const webhooksResource = this.api.root.addResource('webhooks');
@@ -130,12 +122,13 @@ export class BookingStack extends Stack {
 
     // /feedback
     const feedbackResource = this.api.root.addResource('feedback');
-    feedbackResource.addMethod('POST', bookingService.integration, auth);
+    feedbackResource.addMethod('POST', bookingService.integration);
     const prepResource = this.api.root.addResource('prep');
-    const prepItemResource = prepResource.addResource('{tripId}').addResource('{itemId}');
-    prepItemResource.addMethod('PUT', bookingService.integration, auth);
+    const prepTripResource = prepResource.addResource('{tripId}');
+    prepTripResource.addMethod('GET', bookingService.integration);
+    const prepItemResource = prepTripResource.addResource('{itemId}');
+    prepItemResource.addMethod('PUT', bookingService.integration);
 
-    new CfnOutput(this, 'BookingApiUrl', { value: this.api.url });
   }
 }
 

@@ -27,7 +27,7 @@ export const handler = async (event: any) => {
     const method = event.httpMethod;
     const body = event.body ? JSON.parse(event.body) : {};
     const userId = event.pathParameters?.userId;
-    const authUserId = event.requestContext?.authorizer?.claims?.sub;
+    const authUserId = event.headers?.['x-user-id'] || event.headers?.['X-User-Id'];
     const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
 
     // --- Auth routes (no auth required) ---

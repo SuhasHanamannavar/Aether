@@ -6,18 +6,20 @@ import {
   TextInput,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInUp, SlideInDown } from 'react-native-reanimated';
-import { colors, spacing, borderRadius, typography, shadows } from '../theme/tokens';
+import { colors, spacing, borderRadius, typography } from '../theme/tokens';
 import Button from '../components/Button';
-import Chip from '../components/Chip';
+import ModeToggle from '../components/ModeToggle';
+import VibeTagGrid from '../components/VibeTagGrid';
+import PopularDestinationChip from '../components/PopularDestinationChip';
+import BudgetPresetChips from '../components/BudgetPresetChips';
 import BottomSheet from '../components/BottomSheet';
-import StaggerContainer from '../components/StaggerContainer';
-
-const { width } = Dimensions.get('window');
+import { useUser } from '../context/UserContext';
+import { useTrip } from '../context/TripContext';
+import { tripsApi } from '../services/api';
 
 const vibeTags = [
   { id: 'mountains', label: 'Mountains', emoji: '🏔️' },
@@ -39,15 +41,31 @@ const popularDestinations = [
   { name: 'Sydney', emoji: '🏄', color: '#EC4899' },
 ];
 
+const budgetPresets = [
+  { label: '$1k', value: 1000 },
+  { label: '$3k', value: 3000 },
+  { label: '$5k', value: 5000 },
+  { label: '$10k+', value: 10000 },
+];
+
+const modeOptions = [
+  { id: 'destination', label: 'Destination', emoji: '🌍' },
+  { id: 'vibe', label: 'Vibe', emoji: '🎯' },
+];
+
 export default function NewTripScreen() {
   const router = useRouter();
+  const { userId } = useUser();
+  const { setTripId, setDestination, setVibeTags, setBudget: setTripBudget, setDateStart, setDateEnd } = useTrip();
   const [mode, setMode] = useState<'destination' | 'vibe'>('destination');
-  const [destination, setDestination] = useState('');
+  const [destination, setDestinationLocal] = useState('');
   const [selectedVibes, setSelectedVibes] = useState<string[]>([]);
   const [showDetails, setShowDetails] = useState(false);
   const [budget, setBudget] = useState('');
+  const [selectedBudget, setSelectedBudgetLocal] = useState<number | null>(null);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [generating, setGenerating] = useState(false);
 
   const toggleVibe = (id: string) => {
     setSelectedVibes((prev) =>
@@ -59,10 +77,33 @@ export default function NewTripScreen() {
     ? destination.length > 0
     : selectedVibes.length > 0;
 
-  const handleGenerate = () => {
-    if (!canGenerate) return;
-    router.push('/trip-canvas');
+  const handleGenerate = async () => {
+    if (!canGenerate || !userId || generating) return;
+    setGenerating(true);
+    try {
+      const budgetVal = selectedBudget || (budget ? parseInt(budget, 10) : undefined);
+      const trip = await tripsApi.create({
+        destination: mode === 'destination' ? destination : undefined,
+        vibeTags: mode === 'vibe' ? selectedVibes : undefined,
+        budget: budgetVal,
+        dateStart: startDate || undefined,
+        dateEnd: endDate || undefined,
+      });
+      setTripId(trip.tripId);
+      setDestination(trip.destination);
+      setVibeTags(trip.vibeTags);
+      setBudget(trip.budget);
+      setDateStart(trip.dateStart);
+      setDateEnd(trip.dateEnd);
+      router.push('/trip-canvas');
+    } catch {
+      // Still navigate even if API fails (offline fallback)
+      router.push('/trip-canvas');
+    }
+    setGenerating(false);
   };
+
+  const totalSteps = 4;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -77,60 +118,42 @@ export default function NewTripScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <Animated.View entering={FadeInUp.duration(600).springify()}>
+        <Animated.View entering={FadeInUp.duration(500)}>
+          <Text style={styles.stepLabel}>Step 3 of {totalSteps}</Text>
           <Text style={styles.title}>
             Where to,{'\n'}or what's the vibe?
           </Text>
         </Animated.View>
 
         <Animated.View
-          entering={FadeInUp.duration(400).delay(100).springify()}
-          style={styles.modeToggle}
+          entering={FadeInUp.duration(400).delay(100)}
+          style={styles.toggleSection}
         >
-          <TouchableOpacity
-            style={[styles.modeOption, mode === 'destination' && styles.modeActive]}
-            onPress={() => setMode('destination')}
-          >
-            <Text style={[styles.modeEmoji]}>🌍</Text>
-            <Text
-              style={[styles.modeText, mode === 'destination' && styles.modeTextActive]}
-            >
-              Destination
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.modeOption, mode === 'vibe' && styles.modeActive]}
-            onPress={() => setMode('vibe')}
-          >
-            <Text style={[styles.modeEmoji]}>🎯</Text>
-            <Text
-              style={[styles.modeText, mode === 'vibe' && styles.modeTextActive]}
-            >
-              Vibe
-            </Text>
-          </TouchableOpacity>
+          <ModeToggle
+            options={modeOptions}
+            selected={mode}
+            onSelect={(id) => setMode(id as 'destination' | 'vibe')}
+          />
         </Animated.View>
 
         {mode === 'destination' ? (
           <Animated.View
-            entering={FadeInUp.duration(400).delay(200)}
+            entering={FadeInUp.duration(400).delay(150)}
             key="destination"
+            style={styles.destinationSection}
           >
             <View style={styles.inputContainer}>
               <Text style={styles.inputIcon}>🌍</Text>
               <TextInput
                 style={styles.input}
                 placeholder="Enter a destination..."
-                placeholderTextColor={colors.textTertiary}
+                placeholderTextColor="rgba(255,255,255,0.4)"
                 value={destination}
-                onChangeText={setDestination}
+                 onChangeText={setDestinationLocal}
                 autoFocus
               />
               {destination.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => setDestination('')}
-                  style={styles.clearBtn}
-                >
+                <TouchableOpacity onPress={() => setDestinationLocal('')} style={styles.clearBtn}>
                   <Text style={styles.clearIcon}>✕</Text>
                 </TouchableOpacity>
               )}
@@ -139,48 +162,35 @@ export default function NewTripScreen() {
             <Text style={styles.suggestionLabel}>Popular destinations</Text>
             <View style={styles.suggestionRow}>
               {popularDestinations.map((s) => (
-                <TouchableOpacity
+                <PopularDestinationChip
                   key={s.name}
-                  style={[
-                    styles.suggestion,
-                    destination === s.name && {
-                      backgroundColor: s.color + '20',
-                      borderColor: s.color,
-                    },
-                  ]}
-                  onPress={() => setDestination(s.name)}
-                >
-                  <Text style={styles.suggestionEmoji}>{s.emoji}</Text>
-                  <Text style={styles.suggestionText}>{s.name}</Text>
-                </TouchableOpacity>
+                  name={s.name}
+                  emoji={s.emoji}
+                  color={s.color}
+                  isSelected={destination === s.name}
+                  onPress={() => setDestinationLocal(s.name)}
+                />
               ))}
             </View>
           </Animated.View>
         ) : (
           <Animated.View
-            entering={FadeInUp.duration(400).delay(200)}
+            entering={FadeInUp.duration(400).delay(150)}
             key="vibe"
-            style={styles.vibeContainer}
+            style={styles.vibeSection}
           >
             <Text style={styles.vibeHint}>Pick your travel style</Text>
-            <View style={styles.chipRow}>
-              {vibeTags.map((tag) => (
-                <Chip
-                  key={tag.id}
-                  label={tag.label}
-                  emoji={tag.emoji}
-                  selected={selectedVibes.includes(tag.id)}
-                  onPress={() => toggleVibe(tag.id)}
-                  style={styles.chip}
-                />
-              ))}
-            </View>
+            <VibeTagGrid
+              tags={vibeTags}
+              selected={selectedVibes}
+              onToggle={toggleVibe}
+            />
           </Animated.View>
         )}
 
         <Animated.View
-          entering={FadeInUp.duration(400).delay(300)}
-          style={styles.detailsPreview}
+          entering={FadeInUp.duration(400).delay(200)}
+          style={styles.detailsSection}
         >
           <TouchableOpacity
             style={styles.detailsButton}
@@ -198,7 +208,7 @@ export default function NewTripScreen() {
             <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>
 
-          {budget || startDate ? (
+          {(budget || startDate || selectedBudget) ? (
             <View style={styles.previewChips}>
               {startDate ? (
                 <View style={styles.previewChip}>
@@ -207,9 +217,11 @@ export default function NewTripScreen() {
                   </Text>
                 </View>
               ) : null}
-              {budget ? (
+              {(budget || selectedBudget) ? (
                 <View style={styles.previewChip}>
-                  <Text style={styles.previewChipText}>💰 ${budget}</Text>
+                  <Text style={styles.previewChipText}>
+                    💰 ${selectedBudget || budget}
+                  </Text>
                 </View>
               ) : null}
             </View>
@@ -218,11 +230,11 @@ export default function NewTripScreen() {
       </ScrollView>
 
       <Animated.View
-        entering={FadeInUp.duration(400).delay(400)}
+        entering={FadeInUp.duration(400).delay(300)}
         style={styles.bottomSection}
       >
         <Button
-          title={canGenerate ? 'Generate Trip Plan' : 'Tell us more...'}
+          title={generating ? 'Generating...' : (canGenerate ? 'Generate Trip Plan' : 'Tell us more...')}
           onPress={handleGenerate}
           disabled={!canGenerate}
           size="lg"
@@ -234,7 +246,6 @@ export default function NewTripScreen() {
         visible={showDetails}
         title="Trip Details"
         onClose={() => setShowDetails(false)}
-        style={styles.sheet}
       >
         <Text style={styles.sheetLabel}>When are you going?</Text>
         <View style={styles.dateRow}>
@@ -260,11 +271,17 @@ export default function NewTripScreen() {
         </View>
 
         <Text style={[styles.sheetLabel, { marginTop: spacing.xl }]}>Budget</Text>
+        <BudgetPresetChips
+          presets={budgetPresets}
+          selected={selectedBudget}
+          onSelect={setSelectedBudgetLocal}
+          style={{ marginBottom: spacing.md }}
+        />
         <View style={styles.budgetInputContainer}>
           <Text style={styles.budgetCurrency}>$</Text>
           <TextInput
             style={styles.budgetInput}
-            placeholder="Estimate your budget"
+            placeholder="Custom amount"
             placeholderTextColor={colors.textTertiary}
             value={budget}
             onChangeText={setBudget}
@@ -287,7 +304,7 @@ export default function NewTripScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#2D4A2D',
   },
   header: {
     paddingHorizontal: spacing.xl,
@@ -297,14 +314,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.sm,
   },
   backArrow: {
     fontSize: 20,
-    color: colors.text,
+    color: '#FFFFFF',
     fontWeight: '600',
   },
   scroll: {
@@ -312,53 +328,37 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
+    paddingTop: spacing.xl,
     paddingBottom: spacing.xxl,
   },
+  stepLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.5)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm,
+  },
   title: {
-    ...typography.h1,
-    color: colors.text,
+    fontSize: 34,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    lineHeight: 40,
+    letterSpacing: -0.3,
     marginBottom: spacing.xxl,
   },
-  modeToggle: {
-    flexDirection: 'row',
-    backgroundColor: colors.borderLight,
-    borderRadius: borderRadius.md,
-    padding: spacing.xs,
+  toggleSection: {
     marginBottom: spacing.xl,
   },
-  modeOption: {
-    flex: 1,
-    flexDirection: 'row',
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: borderRadius.sm,
-    gap: spacing.sm,
-  },
-  modeActive: {
-    backgroundColor: colors.surface,
-    ...shadows.sm,
-  },
-  modeEmoji: {
-    fontSize: 16,
-  },
-  modeText: {
-    ...typography.bodyBold,
-    color: colors.textSecondary,
-  },
-  modeTextActive: {
-    color: colors.primary,
+  destinationSection: {
+    marginBottom: spacing.xl,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.lg,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    ...shadows.sm,
   },
   inputIcon: {
     fontSize: 20,
@@ -366,8 +366,9 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    ...typography.h2,
-    color: colors.text,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
     paddingVertical: spacing.lg,
   },
   clearBtn: {
@@ -375,12 +376,13 @@ const styles = StyleSheet.create({
   },
   clearIcon: {
     fontSize: 14,
-    color: colors.textTertiary,
+    color: 'rgba(255,255,255,0.5)',
     fontWeight: '600',
   },
   suggestionLabel: {
-    ...typography.captionBold,
-    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.5)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginTop: spacing.xl,
@@ -388,61 +390,36 @@ const styles = StyleSheet.create({
   },
   suggestionRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
     flexWrap: 'wrap',
+    gap: spacing.sm,
   },
-  suggestion: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.borderLight,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: borderRadius.full,
-    borderWidth: 1.5,
-    borderColor: colors.borderLight,
-    gap: spacing.xs,
-  },
-  suggestionEmoji: {
-    fontSize: 14,
-  },
-  suggestionText: {
-    ...typography.captionBold,
-    color: colors.textSecondary,
-  },
-  vibeContainer: {
+  vibeSection: {
     marginBottom: spacing.xl,
   },
   vibeHint: {
-    ...typography.body,
-    color: colors.textSecondary,
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.6)',
     marginBottom: spacing.lg,
   },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  chip: {
-    marginBottom: spacing.xs,
-  },
-  detailsPreview: {
-    marginTop: spacing.xl,
+  detailsSection: {
+    marginTop: spacing.md,
+    paddingBottom: spacing.xxl,
   },
   detailsButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     borderWidth: 1.5,
-    borderColor: colors.borderLight,
+    borderColor: 'rgba(255,255,255,0.12)',
     borderStyle: 'dashed',
   },
   detailsIconCircle: {
     width: 44,
     height: 44,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.borderLight,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.lg,
@@ -454,17 +431,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   detailsButtonTitle: {
-    ...typography.bodyBold,
-    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   detailsButtonHint: {
-    ...typography.caption,
-    color: colors.textTertiary,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.4)',
     marginTop: 2,
   },
   chevron: {
     fontSize: 24,
-    color: colors.textTertiary,
+    color: 'rgba(255,255,255,0.3)',
   },
   previewChips: {
     flexDirection: 'row',
@@ -473,7 +451,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   previewChip: {
-    backgroundColor: colors.accentLight,
+    backgroundColor: 'rgba(232, 168, 124, 0.3)',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs + 2,
     borderRadius: borderRadius.full,
@@ -491,11 +469,9 @@ const styles = StyleSheet.create({
   generateBtn: {
     width: '100%',
   },
-  sheet: {
-    paddingBottom: spacing.xxxl + 20,
-  },
   sheetLabel: {
-    ...typography.bodyBold,
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.text,
     marginBottom: spacing.md,
   },
@@ -516,7 +492,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.lg,
   },
   dateSeparator: {
-    ...typography.h2,
+    fontSize: 22,
+    fontWeight: '600',
     color: colors.textTertiary,
   },
   budgetInputContainer: {
@@ -527,18 +504,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   budgetCurrency: {
-    ...typography.h2,
+    fontSize: 20,
+    fontWeight: '600',
     color: colors.textSecondary,
     marginRight: spacing.sm,
   },
   budgetInput: {
     flex: 1,
-    ...typography.h2,
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.text,
-    paddingVertical: spacing.lg,
+    paddingVertical: spacing.md,
   },
   budgetHint: {
-    ...typography.caption,
+    fontSize: 13,
     color: colors.textTertiary,
   },
   sheetDone: {
