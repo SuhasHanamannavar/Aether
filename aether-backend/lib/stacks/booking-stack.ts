@@ -1,5 +1,4 @@
 import { Duration, Fn, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
-import { UserPool } from 'aws-cdk-lib/aws-cognito';
 import { AttributeType, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { IRestApi, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { Construct } from 'constructs';
@@ -11,7 +10,6 @@ import { Queue } from 'aws-cdk-lib/aws-sqs';
 
 interface BookingStackProps extends StackProps {
   appName: string;
-  userPool: UserPool;
 }
 
 export class BookingStack extends Stack {

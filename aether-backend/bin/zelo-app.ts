@@ -22,20 +22,16 @@ const authStack = new AuthStack(app, `${appName}AuthStack`, {
 const userStack = new UserStack(app, `${appName}UserStack`, {
   env,
   appName,
-  userPool: authStack.userPool,
-  userPoolClient: authStack.userPoolClient,
 });
 
 const tripStack = new TripStack(app, `${appName}TripStack`, {
   env,
   appName,
-  userPool: authStack.userPool,
 });
 
 const bookingStack = new BookingStack(app, `${appName}BookingStack`, {
   env,
   appName,
-  userPool: authStack.userPool,
 });
 
 new NotificationStack(app, `${appName}NotificationStack`, {

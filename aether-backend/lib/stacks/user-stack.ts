@@ -1,5 +1,4 @@
 import { CfnOutput, Stack, StackProps } from 'aws-cdk-lib';
-import { UserPool, UserPoolClient, CfnIdentityPool } from 'aws-cdk-lib/aws-cognito';
 import { AttributeType, ProjectionType } from 'aws-cdk-lib/aws-dynamodb';
 import { RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { Construct } from 'constructs';
@@ -8,8 +7,6 @@ import { DynamoTable } from '../constructs/dynamo-table';
 
 interface UserStackProps extends StackProps {
   appName: string;
-  userPool: UserPool;
-  userPoolClient: UserPoolClient;
 }
 
 export class UserStack extends Stack {
@@ -47,8 +44,6 @@ export class UserStack extends Stack {
       resourcePath: '/users',
       environment: {
         USERS_TABLE: usersTable.table.tableName,
-        USER_POOL_ID: props.userPool.userPoolId,
-        CLIENT_ID: props.userPoolClient.userPoolClientId,
       },
     });
 

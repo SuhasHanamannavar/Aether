@@ -6,20 +6,10 @@ import {
   UpdateCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
-import {
-  CognitoIdentityProviderClient,
-  SignUpCommand,
-  ConfirmSignUpCommand,
-  InitiateAuthCommand,
-  AdminGetUserCommand,
-} from '@aws-sdk/client-cognito-identity-provider';
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-const cognito = new CognitoIdentityProviderClient({});
 
 const USERS_TABLE = process.env.USERS_TABLE!;
-const USER_POOL_ID = process.env.USER_POOL_ID!;
-const CLIENT_ID = process.env.CLIENT_ID!;
 
 export const handler = async (event: any) => {
   try {
@@ -30,48 +20,7 @@ export const handler = async (event: any) => {
     const authUserId = event.headers?.['x-user-id'] || event.headers?.['X-User-Id'];
     const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
 
-    // --- Auth routes (no auth required) ---
-    if (path === '/auth/signup' && method === 'POST') {
-      const { email, password, givenName, familyName } = body;
-      await cognito.send(new SignUpCommand({
-        ClientId: CLIENT_ID,
-        Username: email,
-        Password: password,
-        UserAttributes: [
-          { Name: 'email', Value: email },
-          { Name: 'given_name', Value: givenName || '' },
-          { Name: 'family_name', Value: familyName || '' },
-        ],
-      }));
-      return respond(200, { message: 'Sign-up successful. Check email for confirmation code.' }, headers);
-    }
-
-    if (path === '/auth/confirm' && method === 'POST') {
-      const { email, code } = body;
-      await cognito.send(new ConfirmSignUpCommand({
-        ClientId: CLIENT_ID,
-        Username: email,
-        ConfirmationCode: code,
-      }));
-      return respond(200, { message: 'Email confirmed. You can now log in.' }, headers);
-    }
-
-    if (path === '/auth/login' && method === 'POST') {
-      const { email, password } = body;
-      const result = await cognito.send(new InitiateAuthCommand({
-        AuthFlow: 'USER_PASSWORD_AUTH',
-        ClientId: CLIENT_ID,
-        AuthParameters: { USERNAME: email, PASSWORD: password },
-      }));
-      return respond(200, {
-        accessToken: result.AuthenticationResult?.AccessToken,
-        idToken: result.AuthenticationResult?.IdToken,
-        refreshToken: result.AuthenticationResult?.RefreshToken,
-        expiresIn: result.AuthenticationResult?.ExpiresIn,
-      }, headers);
-    }
-
-    // --- Protected routes (auth required) ---
+    // --- All routes use x-user-id header auth ---
     if (!authUserId) {
       return respond(401, { message: 'Unauthorized' }, headers);
     }
@@ -174,8 +123,7 @@ export const handler = async (event: any) => {
     return respond(404, { message: 'Route not found' }, headers);
   } catch (err: any) {
     console.error('UserService error:', err);
-    const statusCode = err.name === 'UserNotFoundException' || err.name === 'NotAuthorizedException' ? 401 : 500;
-    return respond(statusCode, { message: err.message || 'Internal error' }, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    return respond(500, { message: err.message || 'Internal error' }, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
   }
 };
 

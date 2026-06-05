@@ -1,5 +1,4 @@
 import { Duration, Fn, Stack, StackProps } from 'aws-cdk-lib';
-import { UserPool } from 'aws-cdk-lib/aws-cognito';
 import { AttributeType, ProjectionType, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { IRestApi, RestApi } from 'aws-cdk-lib/aws-apigateway';
 import { Construct } from 'constructs';
@@ -8,7 +7,6 @@ import { DynamoTable } from '../constructs/dynamo-table';
 
 interface TripStackProps extends StackProps {
   appName: string;
-  userPool: UserPool;
 }
 
 export class TripStack extends Stack {
