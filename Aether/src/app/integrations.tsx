@@ -50,7 +50,9 @@ export default function IntegrationsScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.topSection}>
         <Animated.View entering={FadeInUp.duration(500).springify()}>
-          <Text style={styles.step}>Step 2 of 2</Text>
+          <View style={styles.stepBadge}>
+            <Text style={styles.stepBadgeText}>Step 2 of 2</Text>
+          </View>
           <Text style={styles.title}>Optional Integrations</Text>
           <Text style={styles.subtitle}>
             Connect your accounts for a smarter experience
@@ -115,13 +117,18 @@ const styles = StyleSheet.create({
     paddingTop: spacing.huge,
     paddingHorizontal: spacing.xl,
   },
-  step: {
-    fontSize: 13,
-    color: colors.accent,
-    fontWeight: '600',
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: spacing.sm,
+  stepBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.accentLight,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    marginBottom: spacing.lg,
+  },
+  stepBadgeText: {
+    ...typography.small,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   title: {
     ...typography.h1,

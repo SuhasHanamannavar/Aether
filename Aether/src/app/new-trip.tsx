@@ -30,6 +30,15 @@ const vibeTags = [
   { id: 'history', label: 'History', emoji: '📜' },
 ];
 
+const popularDestinations = [
+  { name: 'Tokyo', emoji: '🗼', color: '#EF4444' },
+  { name: 'Paris', emoji: '🗼', color: '#6366F1' },
+  { name: 'Bali', emoji: '🏝️', color: '#10B981' },
+  { name: 'New York', emoji: '🗽', color: '#F59E0B' },
+  { name: 'London', emoji: '🎡', color: '#3B82F6' },
+  { name: 'Sydney', emoji: '🏄', color: '#EC4899' },
+];
+
 export default function NewTripScreen() {
   const router = useRouter();
   const [mode, setMode] = useState<'destination' | 'vibe'>('destination');
@@ -37,6 +46,8 @@ export default function NewTripScreen() {
   const [selectedVibes, setSelectedVibes] = useState<string[]>([]);
   const [showDetails, setShowDetails] = useState(false);
   const [budget, setBudget] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   const toggleVibe = (id: string) => {
     setSelectedVibes((prev) =>
@@ -44,7 +55,9 @@ export default function NewTripScreen() {
     );
   };
 
-  const canGenerate = mode === 'destination' ? destination.length > 0 : selectedVibes.length > 0;
+  const canGenerate = mode === 'destination'
+    ? destination.length > 0
+    : selectedVibes.length > 0;
 
   const handleGenerate = () => {
     if (!canGenerate) return;
@@ -53,16 +66,32 @@ export default function NewTripScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <Animated.View entering={FadeInUp.duration(500).springify()}>
-          <Text style={styles.title}>Where to,{'\n'}or what's the vibe?</Text>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Text style={styles.backArrow}>←</Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Animated.View entering={FadeInUp.duration(600).springify()}>
+          <Text style={styles.title}>
+            Where to,{'\n'}or what's the vibe?
+          </Text>
         </Animated.View>
 
-        <View style={styles.modeToggle}>
+        <Animated.View
+          entering={FadeInUp.duration(400).delay(100).springify()}
+          style={styles.modeToggle}
+        >
           <TouchableOpacity
             style={[styles.modeOption, mode === 'destination' && styles.modeActive]}
             onPress={() => setMode('destination')}
           >
+            <Text style={[styles.modeEmoji]}>🌍</Text>
             <Text
               style={[styles.modeText, mode === 'destination' && styles.modeTextActive]}
             >
@@ -73,14 +102,20 @@ export default function NewTripScreen() {
             style={[styles.modeOption, mode === 'vibe' && styles.modeActive]}
             onPress={() => setMode('vibe')}
           >
-            <Text style={[styles.modeText, mode === 'vibe' && styles.modeTextActive]}>
+            <Text style={[styles.modeEmoji]}>🎯</Text>
+            <Text
+              style={[styles.modeText, mode === 'vibe' && styles.modeTextActive]}
+            >
               Vibe
             </Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
 
         {mode === 'destination' ? (
-          <Animated.View entering={FadeInUp.duration(400)}>
+          <Animated.View
+            entering={FadeInUp.duration(400).delay(200)}
+            key="destination"
+          >
             <View style={styles.inputContainer}>
               <Text style={styles.inputIcon}>🌍</Text>
               <TextInput
@@ -91,21 +126,42 @@ export default function NewTripScreen() {
                 onChangeText={setDestination}
                 autoFocus
               />
-            </View>
-            <View style={styles.suggestionRow}>
-              {['Paris', 'Tokyo', 'Bali', 'New York'].map((s) => (
+              {destination.length > 0 && (
                 <TouchableOpacity
-                  key={s}
-                  style={styles.suggestion}
-                  onPress={() => setDestination(s)}
+                  onPress={() => setDestination('')}
+                  style={styles.clearBtn}
                 >
-                  <Text style={styles.suggestionText}>{s}</Text>
+                  <Text style={styles.clearIcon}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <Text style={styles.suggestionLabel}>Popular destinations</Text>
+            <View style={styles.suggestionRow}>
+              {popularDestinations.map((s) => (
+                <TouchableOpacity
+                  key={s.name}
+                  style={[
+                    styles.suggestion,
+                    destination === s.name && {
+                      backgroundColor: s.color + '20',
+                      borderColor: s.color,
+                    },
+                  ]}
+                  onPress={() => setDestination(s.name)}
+                >
+                  <Text style={styles.suggestionEmoji}>{s.emoji}</Text>
+                  <Text style={styles.suggestionText}>{s.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           </Animated.View>
         ) : (
-          <Animated.View entering={FadeInUp.duration(400)} style={styles.vibeContainer}>
+          <Animated.View
+            entering={FadeInUp.duration(400).delay(200)}
+            key="vibe"
+            style={styles.vibeContainer}
+          >
             <Text style={styles.vibeHint}>Pick your travel style</Text>
             <View style={styles.chipRow}>
               {vibeTags.map((tag) => (
@@ -122,12 +178,17 @@ export default function NewTripScreen() {
           </Animated.View>
         )}
 
-        <Animated.View entering={FadeInUp.duration(400).delay(200)} style={styles.detailsPreview}>
+        <Animated.View
+          entering={FadeInUp.duration(400).delay(300)}
+          style={styles.detailsPreview}
+        >
           <TouchableOpacity
             style={styles.detailsButton}
             onPress={() => setShowDetails(true)}
           >
-            <Text style={styles.detailsButtonEmoji}>📅</Text>
+            <View style={styles.detailsIconCircle}>
+              <Text style={styles.detailsIconEmoji}>📅</Text>
+            </View>
             <View style={styles.detailsButtonText}>
               <Text style={styles.detailsButtonTitle}>Add dates & budget</Text>
               <Text style={styles.detailsButtonHint}>
@@ -136,18 +197,38 @@ export default function NewTripScreen() {
             </View>
             <Text style={styles.chevron}>›</Text>
           </TouchableOpacity>
+
+          {budget || startDate ? (
+            <View style={styles.previewChips}>
+              {startDate ? (
+                <View style={styles.previewChip}>
+                  <Text style={styles.previewChipText}>
+                    📅 {startDate}{endDate ? ` → ${endDate}` : ''}
+                  </Text>
+                </View>
+              ) : null}
+              {budget ? (
+                <View style={styles.previewChip}>
+                  <Text style={styles.previewChipText}>💰 ${budget}</Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
         </Animated.View>
       </ScrollView>
 
-      <View style={styles.bottomSection}>
+      <Animated.View
+        entering={FadeInUp.duration(400).delay(400)}
+        style={styles.bottomSection}
+      >
         <Button
-          title={canGenerate ? "Generate Trip Plan" : "Tell us more..."}
+          title={canGenerate ? 'Generate Trip Plan' : 'Tell us more...'}
           onPress={handleGenerate}
           disabled={!canGenerate}
           size="lg"
           style={styles.generateBtn}
         />
-      </View>
+      </Animated.View>
 
       <BottomSheet
         visible={showDetails}
@@ -157,12 +238,24 @@ export default function NewTripScreen() {
       >
         <Text style={styles.sheetLabel}>When are you going?</Text>
         <View style={styles.dateRow}>
-          <View style={styles.dateInput}>
-            <Text style={styles.datePlaceholder}>Start date</Text>
+          <View style={styles.dateInputWrapper}>
+            <TextInput
+              style={styles.dateInput}
+              placeholder="Start date"
+              placeholderTextColor={colors.textTertiary}
+              value={startDate}
+              onChangeText={setStartDate}
+            />
           </View>
           <Text style={styles.dateSeparator}>→</Text>
-          <View style={styles.dateInput}>
-            <Text style={styles.datePlaceholder}>End date</Text>
+          <View style={styles.dateInputWrapper}>
+            <TextInput
+              style={styles.dateInput}
+              placeholder="End date"
+              placeholderTextColor={colors.textTertiary}
+              value={endDate}
+              onChangeText={setEndDate}
+            />
           </View>
         </View>
 
@@ -177,6 +270,7 @@ export default function NewTripScreen() {
             onChangeText={setBudget}
             keyboardType="numeric"
           />
+          <Text style={styles.budgetHint}>USD</Text>
         </View>
 
         <Button
@@ -195,12 +289,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  header: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.sm,
+  },
+  backArrow: {
+    fontSize: 20,
+    color: colors.text,
+    fontWeight: '600',
+  },
   scroll: {
     flex: 1,
   },
   scrollContent: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.huge,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.xxl,
   },
   title: {
@@ -217,13 +329,19 @@ const styles = StyleSheet.create({
   },
   modeOption: {
     flex: 1,
-    paddingVertical: spacing.sm + 2,
+    flexDirection: 'row',
+    paddingVertical: spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: borderRadius.sm,
+    gap: spacing.sm,
   },
   modeActive: {
     backgroundColor: colors.surface,
     ...shadows.sm,
+  },
+  modeEmoji: {
+    fontSize: 16,
   },
   modeText: {
     ...typography.bodyBold,
@@ -252,17 +370,40 @@ const styles = StyleSheet.create({
     color: colors.text,
     paddingVertical: spacing.lg,
   },
+  clearBtn: {
+    padding: spacing.sm,
+  },
+  clearIcon: {
+    fontSize: 14,
+    color: colors.textTertiary,
+    fontWeight: '600',
+  },
+  suggestionLabel: {
+    ...typography.captionBold,
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: spacing.xl,
+    marginBottom: spacing.md,
+  },
   suggestionRow: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.lg,
     flexWrap: 'wrap',
   },
   suggestion: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.borderLight,
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.sm + 2,
     borderRadius: borderRadius.full,
+    borderWidth: 1.5,
+    borderColor: colors.borderLight,
+    gap: spacing.xs,
+  },
+  suggestionEmoji: {
+    fontSize: 14,
   },
   suggestionText: {
     ...typography.captionBold,
@@ -297,9 +438,17 @@ const styles = StyleSheet.create({
     borderColor: colors.borderLight,
     borderStyle: 'dashed',
   },
-  detailsButtonEmoji: {
-    fontSize: 24,
+  detailsIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.borderLight,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: spacing.lg,
+  },
+  detailsIconEmoji: {
+    fontSize: 20,
   },
   detailsButtonText: {
     flex: 1,
@@ -316,6 +465,23 @@ const styles = StyleSheet.create({
   chevron: {
     fontSize: 24,
     color: colors.textTertiary,
+  },
+  previewChips: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    flexWrap: 'wrap',
+  },
+  previewChip: {
+    backgroundColor: colors.accentLight,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: borderRadius.full,
+  },
+  previewChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   bottomSection: {
     paddingHorizontal: spacing.xl,
@@ -338,16 +504,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
   },
-  dateInput: {
+  dateInputWrapper: {
     flex: 1,
     backgroundColor: colors.borderLight,
     borderRadius: borderRadius.md,
-    padding: spacing.lg,
-    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
   },
-  datePlaceholder: {
+  dateInput: {
     ...typography.body,
-    color: colors.textTertiary,
+    color: colors.text,
+    paddingVertical: spacing.lg,
   },
   dateSeparator: {
     ...typography.h2,
@@ -370,6 +536,10 @@ const styles = StyleSheet.create({
     ...typography.h2,
     color: colors.text,
     paddingVertical: spacing.lg,
+  },
+  budgetHint: {
+    ...typography.caption,
+    color: colors.textTertiary,
   },
   sheetDone: {
     marginTop: spacing.xxl,

@@ -8,7 +8,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import Animated, {
+  FadeInUp,
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import { colors, spacing, borderRadius, typography, shadows } from '../theme/tokens';
 import Button from '../components/Button';
 import StaggerContainer from '../components/StaggerContainer';
@@ -22,6 +28,7 @@ const travelerTypes = [
     description: 'Hostels, trains, and local eats',
     emoji: '🎒',
     color: '#41B3A3',
+    accent: '#E8F5F3',
   },
   {
     id: 'luxury',
@@ -29,6 +36,7 @@ const travelerTypes = [
     description: '5-star stays and fine dining',
     emoji: '✨',
     color: '#E8A87C',
+    accent: '#FEF5EF',
   },
   {
     id: 'family',
@@ -36,6 +44,7 @@ const travelerTypes = [
     description: 'Kid-friendly fun for everyone',
     emoji: '👨‍👩‍👧‍👦',
     color: '#F59E0B',
+    accent: '#FFF8ED',
   },
   {
     id: 'adventure',
@@ -43,6 +52,7 @@ const travelerTypes = [
     description: 'Hikes, dives, and extreme sports',
     emoji: '🏔️',
     color: '#EF4444',
+    accent: '#FEF2F2',
   },
 ];
 
@@ -52,19 +62,26 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.topSection}>
-        <Animated.View entering={FadeInUp.duration(600).springify()}>
+      <View style={styles.content}>
+        <Animated.View
+          entering={FadeInUp.duration(600).springify()}
+          style={styles.header}
+        >
+          <View style={styles.stepBadge}>
+            <Text style={styles.stepText}>Step 1 of 2</Text>
+          </View>
           <Text style={styles.welcome}>Welcome to</Text>
-          <Text style={styles.title}>Aether</Text>
+          <Text style={styles.title}>Zelo</Text>
           <Text style={styles.subtitle}>
-            Your intelligent travel companion
+            Your intelligent travel planner
           </Text>
         </Animated.View>
-      </View>
 
-      <View style={styles.middleSection}>
-        <Text style={styles.question}>What kind of traveler are you?</Text>
-        <StaggerContainer staggerDelay={100} duration={400} style={styles.cardsContainer}>
+        <StaggerContainer
+          staggerDelay={100}
+          duration={400}
+          style={styles.cardsContainer}
+        >
           {travelerTypes.map((type) => {
             const isSelected = selectedType === type.id;
             return (
@@ -75,42 +92,56 @@ export default function OnboardingScreen() {
                 style={[
                   styles.travelerCard,
                   isSelected && {
-                    backgroundColor: type.color,
+                    backgroundColor: type.accent,
                     borderColor: type.color,
+                    borderWidth: 2,
                   },
                 ]}
               >
-                <Text style={styles.cardEmoji}>{type.emoji}</Text>
+                <View
+                  style={[
+                    styles.cardEmojiContainer,
+                    isSelected && { backgroundColor: type.color },
+                  ]}
+                >
+                  <Text style={styles.cardEmoji}>{type.emoji}</Text>
+                </View>
                 <View style={styles.cardText}>
                   <Text
                     style={[
                       styles.cardTitle,
-                      isSelected && { color: '#FFFFFF' },
+                      isSelected && { color: type.color },
                     ]}
                   >
                     {type.name}
                   </Text>
-                  <Text
-                    style={[
-                      styles.cardDesc,
-                      isSelected && { color: 'rgba(255,255,255,0.8)' },
-                    ]}
-                  >
+                  <Text style={styles.cardDesc}>
                     {type.description}
                   </Text>
                 </View>
-                {isSelected && (
-                  <View style={styles.checkCircle}>
-                    <Text style={styles.checkMark}>✓</Text>
-                  </View>
-                )}
+                <View
+                  style={[
+                    styles.cardCheck,
+                    isSelected && {
+                      backgroundColor: type.color,
+                      borderColor: type.color,
+                    },
+                  ]}
+                >
+                  <Text style={styles.checkMark}>
+                    {isSelected ? '✓' : ''}
+                  </Text>
+                </View>
               </TouchableOpacity>
             );
           })}
         </StaggerContainer>
       </View>
 
-      <View style={styles.bottomSection}>
+      <Animated.View
+        entering={FadeInUp.duration(400).delay(500)}
+        style={styles.bottom}
+      >
         <Button
           title="Continue"
           onPress={() => router.push('/integrations')}
@@ -118,7 +149,13 @@ export default function OnboardingScreen() {
           size="lg"
           style={styles.continueBtn}
         />
-      </View>
+        <TouchableOpacity
+          onPress={() => router.push('/integrations')}
+          style={styles.skipRow}
+        >
+          <Text style={styles.skipText}>Skip for now</Text>
+        </TouchableOpacity>
+      </Animated.View>
     </SafeAreaView>
   );
 }
@@ -128,10 +165,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  topSection: {
+  content: {
+    flex: 1,
     paddingTop: spacing.huge,
     paddingHorizontal: spacing.xl,
-    alignItems: 'center',
+  },
+  header: {
+    marginBottom: spacing.xxl,
+  },
+  stepBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.accentLight,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.full,
+    marginBottom: spacing.lg,
+  },
+  stepText: {
+    ...typography.small,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   welcome: {
     fontSize: 16,
@@ -139,27 +192,16 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     letterSpacing: 2,
     textTransform: 'uppercase',
+    marginBottom: spacing.xs,
   },
   title: {
     ...typography.display,
     color: colors.primary,
-    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
   },
   subtitle: {
     ...typography.body,
     color: colors.textSecondary,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-  },
-  middleSection: {
-    flex: 1,
-    paddingHorizontal: spacing.xl,
-    justifyContent: 'center',
-  },
-  question: {
-    ...typography.h2,
-    color: colors.text,
-    marginBottom: spacing.xl,
   },
   cardsContainer: {
     gap: spacing.md,
@@ -170,13 +212,21 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     padding: spacing.lg,
     borderRadius: borderRadius.lg,
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: colors.borderLight,
     ...shadows.sm,
   },
-  cardEmoji: {
-    fontSize: 32,
+  cardEmojiContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.borderLight,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: spacing.lg,
+  },
+  cardEmoji: {
+    fontSize: 22,
   },
   cardText: {
     flex: 1,
@@ -190,24 +240,34 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: 2,
   },
-  checkCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.3)',
+  cardCheck: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkMark: {
+    fontSize: 14,
     color: '#FFFFFF',
-    fontSize: 16,
     fontWeight: '700',
   },
-  bottomSection: {
+  bottom: {
     paddingHorizontal: spacing.xl,
     paddingBottom: spacing.xxxl,
+    gap: spacing.md,
+    alignItems: 'center',
   },
   continueBtn: {
     width: '100%',
+  },
+  skipRow: {
+    paddingVertical: spacing.sm,
+  },
+  skipText: {
+    ...typography.body,
+    color: colors.textTertiary,
   },
 });
