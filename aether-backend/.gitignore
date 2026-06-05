@@ -1,0 +1,8 @@
+node_modules/
+dist/
+cdk.out/
+*.js
+*.js.map
+*.d.ts
+!lambdas/**/*.js
+.DS_Store
