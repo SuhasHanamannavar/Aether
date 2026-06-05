@@ -100,63 +100,19 @@ export class TripStack extends Stack {
 
     // --- API Routes ---
 
-    // /trips
+    // /trips — list & create
     const tripsResource = this.api.root.addResource('trips');
     tripsResource.addMethod('POST', tripService.integration);
     tripsResource.addMethod('GET', tripService.integration);
 
-    // /trips/{id}
+    // /trips/{tripId} — get & update
     const tripResource = tripsResource.addResource('{tripId}');
     tripResource.addMethod('GET', tripService.integration);
     tripResource.addMethod('PUT', tripService.integration);
 
-    // /trips/{id}/canvas
-    const canvasResource = tripResource.addResource('canvas');
-    canvasResource.addMethod('GET', tripService.integration);
-    const generateCanvas = tripResource.addResource('generate-canvas');
-    generateCanvas.addMethod('POST', tripService.integration);
-
-    // /trips/{id}/itinerary
-    const itineraryResource = tripResource.addResource('itinerary');
-    itineraryResource.addMethod('GET', tripService.integration);
-
-    // /trips/{id}/itinerary/reorder
-    const reorderResource = itineraryResource.addResource('reorder');
-    reorderResource.addMethod('PUT', tripService.integration);
-
-    // /trips/{id}/restaurants
-    const restaurantsResource = tripResource.addResource('restaurants');
-    restaurantsResource.addMethod('GET', tripService.integration);
-
-    // /trips/{id}/bookings
-    const bookingsResource = tripResource.addResource('bookings');
-    bookingsResource.addMethod('GET', tripService.integration);
-
-    // /trips/{id}/prep
-    const prepResource = tripResource.addResource('prep');
-    prepResource.addMethod('GET', tripService.integration);
-
-    // /trips/{id}/packing
-    const packingResource = tripResource.addResource('packing');
-    packingResource.addMethod('GET', tripService.integration);
-
-    // /trips/{id}/feedback
-    const feedbackSubResource = tripResource.addResource('feedback');
-    feedbackSubResource.addMethod('POST', tripService.integration);
-
-    // /trips/{id}/expenses
-    const expensesResource = tripResource.addResource('expenses');
-    expensesResource.addMethod('POST', tripService.integration);
-    expensesResource.addMethod('GET', tripService.integration);
-    const expenseResource = expensesResource.addResource('{expenseId}');
-    expenseResource.addMethod('DELETE', tripService.integration);
-
-    // /trips/{id}/memories
-    const memoriesResource = tripResource.addResource('memories');
-    memoriesResource.addMethod('POST', tripService.integration);
-    memoriesResource.addMethod('GET', tripService.integration);
-    const memoryResource = memoriesResource.addResource('{memoryId}');
-    memoryResource.addMethod('DELETE', tripService.integration);
+    // /trips/{tripId}/{proxy+} — all sub-routes (reduces Lambda permission count)
+    const proxyResource = tripResource.addResource('{proxy+}');
+    proxyResource.addMethod('ANY', tripService.integration);
 
   }
 }

@@ -21,13 +21,32 @@ const MEMORIES_TABLE = process.env.MEMORIES_TABLE!;
 
 export const handler = async (event: any) => {
   try {
-    const path = event.resource;
     const method = event.httpMethod;
     const body = event.body ? JSON.parse(event.body) : {};
     const tripId = event.pathParameters?.tripId;
     const authUserId = event.headers?.['x-user-id'] || event.headers?.['X-User-Id'];
     const queryParams = event.queryStringParameters || {};
     const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+
+    // Resolve resource path from proxy (consolidated routes)
+    const proxy = event.pathParameters?.proxy || '';
+    let path = event.resource;
+    if (proxy) {
+      path = `/trips/{tripId}/${proxy}`;
+      path = path.replace(/\/expenses\/([^/]+)/, '/expenses/{expenseId}');
+      path = path.replace(/\/memories\/([^/]+)/, '/memories/{memoryId}');
+      const proxyParts = proxy.split('/');
+      for (let i = 0; i < proxyParts.length; i++) {
+        if (proxyParts[i] === 'expenses' && i + 1 < proxyParts.length) {
+          event.pathParameters = event.pathParameters || {};
+          event.pathParameters.expenseId = proxyParts[i + 1];
+        }
+        if (proxyParts[i] === 'memories' && i + 1 < proxyParts.length) {
+          event.pathParameters = event.pathParameters || {};
+          event.pathParameters.memoryId = proxyParts[i + 1];
+        }
+      }
+    }
 
     if (!authUserId) return respond(401, { message: 'Unauthorized' }, headers);
 
