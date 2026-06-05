@@ -29,24 +29,6 @@ const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const MAP_HEIGHT = 180;
 
-const FOOD_THEME = {
-  bg: '#2D4A2D',
-  surface: '#1E3A1E',
-  card: '#FFFFFF',
-  accent: '#E8A87C',
-  accentLight: '#F0C4A8',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255,255,255,0.7)',
-  textTertiary: 'rgba(255,255,255,0.4)',
-  borderLight: 'rgba(255,255,255,0.08)',
-  borderMedium: 'rgba(255,255,255,0.15)',
-  glassBg: 'rgba(255,255,255,0.1)',
-  glassBorder: 'rgba(255,255,255,0.18)',
-  scoreHigh: '#10B981',
-  scoreMid: '#F59E0B',
-  scoreLow: '#9CA3AF',
-};
-
 const FILTERS = ['All', '$$', '$$$', '$$$$', 'Near Me', 'Top Rated'];
 
 const PRICE_MAP: Record<string, string[]> = {
@@ -71,21 +53,10 @@ interface Restaurant {
   description: string;
 }
 
-const DEFAULT_RESTAURANTS: Restaurant[] = [
-  { id: 'r1', name: 'Ichiran Ramen', emoji: '🍜', cuisine: 'Ramen', distance: '5 min', price: '$$', score: 94, qualityPrice: 92, lat: 35.6895, lng: 139.6917, address: 'Shinjuku, Tokyo', hours: '10:00 - 23:00', description: 'Renowned solo-booth ramen experience with rich tonkotsu broth.' },
-  { id: 'r2', name: 'Uobei', emoji: '🍣', cuisine: 'Sushi', distance: '12 min', price: '$', score: 91, qualityPrice: 95, lat: 35.6615, lng: 139.6982, address: 'Shibuya, Tokyo', hours: '11:00 - 22:00', description: 'Fast-paced conveyor belt sushi at unbeatable prices.' },
-  { id: 'r3', name: 'Gyoza King', emoji: '🥟', cuisine: 'Gyoza', distance: '8 min', price: '$$', score: 88, qualityPrice: 85, lat: 35.6702, lng: 139.7023, address: 'Harajuku, Tokyo', hours: '12:00 - 21:30', description: 'Crispy hand-made gyoza with creative fillings.' },
-  { id: 'r4', name: 'Kikunoi', emoji: '🍱', cuisine: 'Kaiseki', distance: '20 min', price: '$$$$', score: 97, qualityPrice: 78, lat: 35.6648, lng: 139.7294, address: 'Akasaka, Tokyo', hours: '12:00 - 20:00', description: 'Michelin-starred traditional kaiseki dining experience.' },
-  { id: 'r5', name: 'Tsukiji Outer Grill', emoji: '🐟', cuisine: 'Seafood', distance: '15 min', price: '$$$', score: 89, qualityPrice: 82, lat: 35.6654, lng: 139.7707, address: 'Tsukiji, Tokyo', hours: '06:00 - 14:00', description: 'Fresh-off-the-boat seafood grilled to perfection.' },
-  { id: 'r6', name: 'Nakiryu', emoji: '🍜', cuisine: 'Ramen', distance: '10 min', price: '$', score: 93, qualityPrice: 96, lat: 35.6762, lng: 139.7153, address: 'Minami-Aoyama, Tokyo', hours: '11:00 - 15:00', description: 'Michelin Bib Gourmand tantanmen ramen.' },
-  { id: 'r7', name: 'Tapas Molecular Bar', emoji: '🍸', cuisine: 'Fusion', distance: '25 min', price: '$$$$', score: 95, qualityPrice: 72, lat: 35.6652, lng: 139.7301, address: 'Nihonbashi, Tokyo', hours: '18:00 - 23:00', description: 'Avant-garde molecular gastronomy in an intimate setting.' },
-  { id: 'r8', name: 'Katsu Midori', emoji: '🍛', cuisine: 'Katsu', distance: '7 min', price: '$$', score: 87, qualityPrice: 90, lat: 35.6605, lng: 139.7002, address: 'Shibuya, Tokyo', hours: '11:30 - 21:00', description: 'Legendary katsu curry with perfectly panko-crusted cutlets.' },
-];
-
 function getScoreColor(score: number): string {
-  if (score >= 90) return FOOD_THEME.scoreHigh;
-  if (score >= 80) return FOOD_THEME.scoreMid;
-  return FOOD_THEME.scoreLow;
+  if (score >= 90) return colors.success;
+  if (score >= 80) return colors.warning;
+  return colors.textTertiary;
 }
 
 function RestaurantCard({
@@ -133,7 +104,7 @@ function RestaurantCard({
             <View
               style={[
                 styles.qualityBarFill,
-                { width: `${item.qualityPrice}%`, backgroundColor: FOOD_THEME.accent },
+                { width: `${item.qualityPrice}%`, backgroundColor: colors.accent },
               ]}
             />
           </View>
@@ -191,7 +162,7 @@ function FilterChip({
 export default function FoodFinderScreen() {
   const router = useRouter();
   const { trip } = useTrip();
-  const [restaurants, setRestaurants] = useState<Restaurant[]>(DEFAULT_RESTAURANTS);
+  const [restaurants, setRestaurants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('All');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -247,7 +218,7 @@ export default function FoodFinderScreen() {
         coordinates: [r.lng, r.lat] as [number, number],
         title: r.name,
         emoji: r.emoji,
-        color: FOOD_THEME.accent,
+        color: colors.accent,
       })),
     [filtered]
   );
@@ -320,7 +291,7 @@ export default function FoodFinderScreen() {
           <Animated.View entering={FadeInUp.duration(300)} style={styles.emptyBox}>
             <Text style={styles.emptyEmoji}>🍽️</Text>
             <Text style={styles.emptyTitle}>No restaurants found</Text>
-            <Text style={styles.emptyDesc}>Try a different filter</Text>
+            <Text style={styles.emptyText}>Try a different filter or check back later</Text>
           </Animated.View>
         ) : (
           <View style={styles.listHeader}>
@@ -345,7 +316,7 @@ export default function FoodFinderScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: FOOD_THEME.bg,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -358,14 +329,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: FOOD_THEME.glassBg,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
   },
   backArrow: {
     fontSize: 20,
-    color: FOOD_THEME.textPrimary,
+    color: colors.textInverse,
     fontWeight: '600',
   },
   headerTextWrap: {
@@ -373,18 +344,18 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...typography.h2,
-    color: FOOD_THEME.textPrimary,
+    color: colors.textInverse,
   },
   headerSubtitle: {
     ...typography.caption,
-    color: FOOD_THEME.textSecondary,
+    color: 'rgba(255,255,255,0.7)',
     marginTop: 2,
   },
   mapToggleBtn: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: FOOD_THEME.glassBg,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -394,10 +365,10 @@ const styles = StyleSheet.create({
   glassFilter: {
     marginHorizontal: spacing.xl,
     marginBottom: spacing.md,
-    backgroundColor: FOOD_THEME.glassBg,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: FOOD_THEME.glassBorder,
+    borderColor: 'rgba(255,255,255,0.18)',
     overflow: 'hidden',
   },
   filterContent: {
@@ -416,7 +387,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
   filterChipActive: {
-    backgroundColor: FOOD_THEME.accent,
+    backgroundColor: colors.accent,
   },
   filterChipDot: {
     width: 6,
@@ -426,7 +397,7 @@ const styles = StyleSheet.create({
   },
   filterChipText: {
     ...typography.captionBold,
-    color: FOOD_THEME.textSecondary,
+    color: 'rgba(255,255,255,0.7)',
   },
   filterChipTextActive: {
     color: '#FFFFFF',
@@ -459,7 +430,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     ...typography.body,
-    color: FOOD_THEME.textSecondary,
+    color: 'rgba(255,255,255,0.7)',
   },
   emptyBox: {
     alignItems: 'center',
@@ -471,11 +442,11 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...typography.h3,
-    color: FOOD_THEME.textPrimary,
+    color: colors.textInverse,
   },
-  emptyDesc: {
+  emptyText: {
     ...typography.caption,
-    color: FOOD_THEME.textSecondary,
+    color: 'rgba(255,255,255,0.7)',
     marginTop: spacing.sm,
   },
   listHeader: {
@@ -484,12 +455,12 @@ const styles = StyleSheet.create({
   },
   listHeaderCount: {
     ...typography.captionBold,
-    color: FOOD_THEME.textTertiary,
+    color: 'rgba(255,255,255,0.4)',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   restaurantCard: {
-    backgroundColor: FOOD_THEME.card,
+    backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     marginBottom: spacing.md,
@@ -503,7 +474,7 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: FOOD_THEME.accentLight + '30',
+    backgroundColor: colors.accentLight + '30',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
@@ -516,11 +487,11 @@ const styles = StyleSheet.create({
   },
   cardName: {
     ...typography.bodyBold,
-    color: FOOD_THEME.bg,
+    color: colors.text,
   },
   cardDetail: {
     ...typography.caption,
-    color: FOOD_THEME.bg + '99',
+    color: colors.text + '99',
     marginTop: 2,
   },
   cardRight: {
@@ -538,7 +509,7 @@ const styles = StyleSheet.create({
   },
   priceLabel: {
     ...typography.small,
-    color: FOOD_THEME.bg + '80',
+    color: colors.text + '80',
     fontWeight: '600',
   },
   qualityRow: {
@@ -547,18 +518,18 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: FOOD_THEME.borderLight,
+    borderTopColor: 'rgba(255,255,255,0.08)',
   },
   qualityLabel: {
     ...typography.small,
-    color: FOOD_THEME.textTertiary,
+    color: 'rgba(255,255,255,0.4)',
     marginRight: spacing.md,
     width: 80,
   },
   qualityBarBg: {
     flex: 1,
     height: 6,
-    backgroundColor: FOOD_THEME.borderLight,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -570,7 +541,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: FOOD_THEME.borderLight,
+    borderTopColor: 'rgba(255,255,255,0.08)',
     gap: spacing.sm,
   },
   expandedRow: {
@@ -585,11 +556,11 @@ const styles = StyleSheet.create({
   },
   expandedText: {
     ...typography.caption,
-    color: FOOD_THEME.bg + 'CC',
+    color: colors.text + 'CC',
   },
   expandedDesc: {
     ...typography.caption,
-    color: FOOD_THEME.bg + '99',
+    color: colors.text + '99',
     lineHeight: 20,
     marginTop: spacing.xs,
     fontStyle: 'italic',
@@ -601,7 +572,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
-    backgroundColor: FOOD_THEME.accent,
+    backgroundColor: colors.accent,
     borderRadius: borderRadius.sm,
   },
   detailBtnText: {

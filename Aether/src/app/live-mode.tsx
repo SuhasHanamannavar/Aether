@@ -25,15 +25,6 @@ const GLASS_BORDER = 'rgba(255,255,255,0.12)';
 const ACCENT_GREEN = '#7CFF6B';
 const TOKYO_CENTER: [number, number] = [139.6503, 35.6762];
 
-const expenseCategories = [
-  { emoji: '🍽️', label: 'Food', value: 'food' },
-  { emoji: '🚕', label: 'Transport', value: 'transport' },
-  { emoji: '🏨', label: 'Hotel', value: 'hotel' },
-  { emoji: '🎟️', label: 'Activities', value: 'activities' },
-  { emoji: '🛍️', label: 'Shopping', value: 'shopping' },
-  { emoji: '📦', label: 'Other', value: 'other' },
-];
-
 interface TimelineItemData {
   id: string;
   time: string;
@@ -91,36 +82,6 @@ function formatTime(date: Date): string {
   const minutes = date.getMinutes().toString().padStart(2, '0');
   return `${hours}:${minutes}`;
 }
-
-const defaultDays: DayData[] = [
-  {
-    day: 1, title: 'Arrival & Explore', date: 'Mon, Oct 14',
-    items: [
-      { id: 'd1-1', time: '09:00', title: 'Tsukiji Fish Market', emoji: '🐟', duration: '3h', coordinates: [139.7723, 35.6654] },
-      { id: 'd1-2', time: '13:00', title: 'Shibuya Crossing', emoji: '🚶', duration: '1h', coordinates: [139.7004, 35.6595] },
-      { id: 'd1-3', time: '15:30', title: 'Harajuku Walk', emoji: '🛍️', duration: '2h', coordinates: [139.7025, 35.6702] },
-      { id: 'd1-4', time: '19:00', title: 'Ramen Dinner', emoji: '🍜', duration: '1.5h', coordinates: [139.7008, 35.6697] },
-    ],
-  },
-  {
-    day: 2, title: 'Culture Day', date: 'Tue, Oct 15',
-    items: [
-      { id: 'd2-1', time: '08:00', title: 'Meiji Shrine', emoji: '⛩️', duration: '2h', coordinates: [139.6993, 35.6764] },
-      { id: 'd2-2', time: '11:00', title: 'Asakusa & Senso-ji', emoji: '🏯', duration: '2.5h', coordinates: [139.7967, 35.7148] },
-      { id: 'd2-3', time: '14:00', title: 'Akihabara', emoji: '🎮', duration: '3h', coordinates: [139.7714, 35.7023] },
-      { id: 'd2-4', time: '19:00', title: 'Teppanyaki Dinner', emoji: '🥩', duration: '2h', coordinates: [139.7101, 35.6639] },
-    ],
-  },
-  {
-    day: 3, title: 'Nature & Departure', date: 'Wed, Oct 16',
-    items: [
-      { id: 'd3-1', time: '06:00', title: 'Shinkansen to Kyoto', emoji: '🚄', duration: '2.5h', coordinates: [139.7671, 35.6812] },
-      { id: 'd3-2', time: '09:30', title: 'Fushimi Inari', emoji: '⛩️', duration: '2h', coordinates: [135.7727, 34.9671] },
-      { id: 'd3-3', time: '12:00', title: 'Bamboo Forest', emoji: '🎋', duration: '1.5h', coordinates: [135.6729, 35.0170] },
-      { id: 'd3-4', time: '15:00', title: 'Departure', emoji: '✈️', duration: '-', coordinates: [135.7649, 34.8583] },
-    ],
-  },
-];
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -192,7 +153,7 @@ export default function LiveModeScreen() {
   const router = useRouter();
   const { trip } = useTrip();
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [days, setDays] = useState<DayData[]>(defaultDays);
+  const [days, setDays] = useState<DayData[]>([]);
   const [currentDayIndex, setCurrentDayIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [expenseSheetVisible, setExpenseSheetVisible] = useState(false);
@@ -317,9 +278,15 @@ export default function LiveModeScreen() {
       </Animated.View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {todayItems.length > 0 ? todayItems.map((item, index) => (
-          <TimelineItemRow key={item.id} item={item} isNext={nextItemIndex === index} index={index} />
-        )) : (
+        {loading ? (
+          <Text style={styles.loadingText}>Loading...</Text>
+        ) : days.length === 0 ? (
+          <Text style={styles.emptyText}>No timeline data yet</Text>
+        ) : todayItems.length > 0 ? (
+          todayItems.map((item, index) => (
+            <TimelineItemRow key={item.id} item={item} isNext={nextItemIndex === index} index={index} />
+          ))
+        ) : (
           <View style={styles.emptyTimeline}>
             <Text style={styles.emptyEmoji}>🗓️</Text>
             <Text style={styles.emptyTitle}>No items scheduled</Text>
@@ -398,7 +365,14 @@ export default function LiveModeScreen() {
         <View style={styles.expenseSheet}>
           <Text style={styles.expenseLabel}>Category</Text>
           <View style={styles.expenseCategoryRow}>
-            {expenseCategories.map((cat) => (
+            {[
+              { emoji: '🍽️', label: 'Food', value: 'food' },
+              { emoji: '🚕', label: 'Transport', value: 'transport' },
+              { emoji: '🏨', label: 'Hotel', value: 'hotel' },
+              { emoji: '🎟️', label: 'Activities', value: 'activities' },
+              { emoji: '🛍️', label: 'Shopping', value: 'shopping' },
+              { emoji: '📦', label: 'Other', value: 'other' },
+            ].map((cat) => (
               <TouchableOpacity
                 key={cat.value} onPress={() => setExpenseCategory(cat.value)}
                 style={[styles.expensePill, expenseCategory === cat.value && styles.expensePillActive]}
@@ -488,6 +462,9 @@ const styles = StyleSheet.create({
   emptyEmoji: { fontSize: 36, marginBottom: spacing.md },
   emptyTitle: { fontSize: 16, fontWeight: '600', color: '#FFFFFF' },
   emptyDesc: { fontSize: 13, color: 'rgba(255,255,255,0.4)', marginTop: spacing.xs },
+
+  loadingText: { textAlign: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 15, paddingVertical: spacing.xxxl },
+  emptyText: { textAlign: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 15, paddingVertical: spacing.xxxl },
 
   quickActions: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   quickActionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

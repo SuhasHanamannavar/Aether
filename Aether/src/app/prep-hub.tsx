@@ -24,7 +24,6 @@ import { colors, spacing, borderRadius, typography, shadows } from '../theme/tok
 import { cardEntrance, sectionEntrance } from '../theme/animations';
 import Button from '../components/Button';
 import BottomSheet from '../components/BottomSheet';
-import type { TransportMode } from '../components/TransportBar';
 import { useTrip } from '../context/TripContext';
 import { tripsApi, prepApi } from '../services/api';
 
@@ -53,91 +52,6 @@ interface EtiquetteTipType {
   id: string;
   tip: string;
   category: string;
-}
-
-const defaultChecklist: ChecklistItemType[] = [
-  { id: 'c1', title: 'Confirm flight details', notes: 'Check-in opens 24h before departure', completed: false },
-  { id: 'c2', title: 'Book airport transfer', notes: 'Pre-arranged through hotel concierge', completed: false },
-  { id: 'c3', title: 'Validate passport', notes: 'Must be valid for 6+ months beyond travel dates', completed: false },
-  { id: 'c4', title: 'Download offline maps', notes: 'Google Maps — Tokyo metropolitan area', completed: false },
-  { id: 'c5', title: 'Get travel insurance', notes: 'Policy #AET-7892 — covers medical & cancellation', completed: false },
-  { id: 'c6', title: 'Notify bank of travel', notes: 'Chase Sapphire & Amex Platinum', completed: false },
-  { id: 'c7', title: 'Check visa requirements', notes: 'Visa-free for US passport holders — 90 days', completed: false },
-  { id: 'c8', title: 'Pack carry-on essentials', notes: 'Chargers, medications, change of clothes', completed: false },
-];
-
-const defaultPackingSections: PackingSectionType[] = [
-  {
-    id: 'essentials',
-    title: 'Essentials',
-    items: [
-      { id: 'p1', title: 'Passport & ID', packed: false },
-      { id: 'p2', title: 'Wallet & cash (JPY)', packed: false },
-      { id: 'p3', title: 'Phone & charging cable', packed: false },
-      { id: 'p4', title: 'Universal travel adapter', packed: false },
-    ],
-  },
-  {
-    id: 'clothing',
-    title: 'Clothing',
-    items: [
-      { id: 'p5', title: 'Lightweight jackets', packed: false },
-      { id: 'p6', title: 'Comfortable walking shoes', packed: false },
-      { id: 'p7', title: 'Raincoat or compact umbrella', packed: false },
-    ],
-  },
-  {
-    id: 'toiletries',
-    title: 'Toiletries',
-    items: [
-      { id: 'p8', title: 'Toiletry bag (TSA-size)', packed: false },
-      { id: 'p9', title: 'Sunscreen SPF 50+', packed: false },
-      { id: 'p10', title: 'Hand sanitizer & wipes', packed: false },
-    ],
-  },
-  {
-    id: 'documents',
-    title: 'Documents',
-    items: [
-      { id: 'p11', title: 'Flight e-ticket confirmations', packed: false },
-      { id: 'p12', title: 'Hotel booking vouchers', packed: false },
-      { id: 'p13', title: 'Travel insurance certificate', packed: false },
-    ],
-  },
-];
-
-const defaultEtiquette: EtiquetteTipType[] = [
-  { id: 'e1', tip: 'Bow when greeting — a slight bow from the waist shows respect', category: 'Greetings' },
-  { id: 'e2', tip: 'Remove shoes before entering homes, temples, and many traditional restaurants', category: 'Customs' },
-  { id: 'e3', tip: 'Do not tip — tipping is not customary in Japan and may cause confusion', category: 'Dining' },
-  { id: 'e4', tip: 'Use both hands when giving or receiving items, especially business cards', category: 'General' },
-  { id: 'e5', tip: 'Avoid eating while walking in public — it is considered impolite', category: 'Dining' },
-  { id: 'e6', tip: 'Keep conversations quiet on public transportation and trains', category: 'General' },
-];
-
-function getTransportChecklistItems(mode?: TransportMode): ChecklistItemType[] {
-  switch (mode) {
-    case 'drive':
-      return [
-        { id: 't_drive_1', title: 'Check vehicle maintenance', notes: 'Oil, tires, brakes, fluids', completed: false },
-        { id: 't_drive_2', title: 'Plan fuel/charging stops', completed: false },
-        { id: 't_drive_3', title: 'Download offline maps', completed: false },
-      ];
-    case 'transit':
-      return [
-        { id: 't_transit_1', title: 'Purchase transit pass', completed: false },
-        { id: 't_transit_2', title: 'Download route maps', completed: false },
-        { id: 't_transit_3', title: 'Check station connections', completed: false },
-      ];
-    case 'walk':
-    case 'bike':
-      return [
-        { id: 't_walk_1', title: 'Check route conditions', notes: 'Weather, closures, safety', completed: false },
-        { id: 't_walk_2', title: 'Download walking/bike maps', completed: false },
-      ];
-    default:
-      return [];
-  }
 }
 
 function formatDisplayDate(dateStr: string | null): string {
@@ -334,13 +248,9 @@ export default function PrepHubScreen() {
   const [activeTab, setActiveTab] = useState<'checklist' | 'packing' | 'etiquette'>('checklist');
   const [loading, setLoading] = useState(true);
   const [destination, setDestination] = useState<string | null>(null);
-  const [checklist, setChecklist] = useState<ChecklistItemType[]>(
-    defaultChecklist.map(c => ({ ...c, completed: false }))
-  );
-  const [packingSections, setPackingSections] = useState<PackingSectionType[]>(
-    defaultPackingSections.map(s => ({ ...s, items: s.items.map(i => ({ ...i, packed: false })) }))
-  );
-  const [etiquette, setEtiquette] = useState<EtiquetteTipType[]>(defaultEtiquette);
+  const [checklist, setChecklist] = useState<ChecklistItemType[]>([]);
+  const [packingSections, setPackingSections] = useState<PackingSectionType[]>([]);
+  const [etiquette, setEtiquette] = useState<EtiquetteTipType[]>([]);
   const [showSkipPrep, setShowSkipPrep] = useState(false);
 
   useEffect(() => {
@@ -405,17 +315,7 @@ export default function PrepHubScreen() {
           })));
         }
 
-        // Append transport-specific checklist items
-        const transportItems = getTransportChecklistItems(trip.transportMode);
-        if (transportItems.length > 0) {
-          setChecklist(prev => {
-            const existingIds = new Set(prev.map(c => c.id));
-            const newItems = transportItems.filter(ti => !existingIds.has(ti.id));
-            if (newItems.length > 0) return [...prev, ...newItems];
-            return prev;
-          });
-        }
-      } catch { /* use defaults */ }
+      } catch { /* silent */ }
       setLoading(false);
     })();
   }, [trip.tripId]);
@@ -458,6 +358,7 @@ export default function PrepHubScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.accent} />
+          <Text style={styles.loadingText}>Loading prep data...</Text>
         </View>
       </SafeAreaView>
     );
@@ -521,45 +422,57 @@ export default function PrepHubScreen() {
         {/* Checklist Tab */}
         {activeTab === 'checklist' && (
           <View style={styles.tabContent}>
-            {checklist.map((item, index) => (
-              <ChecklistItemCard
-                key={item.id}
-                item={item}
-                onToggle={handleToggleChecklist}
-                index={index}
-              />
-            ))}
+            {checklist.length === 0 ? (
+              <Text style={styles.emptyText}>No checklist items yet.</Text>
+            ) : (
+              checklist.map((item, index) => (
+                <ChecklistItemCard
+                  key={item.id}
+                  item={item}
+                  onToggle={handleToggleChecklist}
+                  index={index}
+                />
+              ))
+            )}
           </View>
         )}
 
         {/* Packing Tab */}
         {activeTab === 'packing' && (
           <View style={styles.tabContent}>
-            {packingSections.map((section) => (
-              <Animated.View
-                key={section.id}
-                entering={sectionEntrance.delay(80)}
-                style={styles.packingSection}
-              >
-                <Text style={styles.sectionHeader}>{section.title}</Text>
-                {section.items.map((item) => (
-                  <PackingItemRow
-                    key={item.id}
-                    item={item}
-                    onToggle={(id) => handleTogglePacking(section.id, id)}
-                  />
-                ))}
-              </Animated.View>
-            ))}
+            {packingSections.length === 0 ? (
+              <Text style={styles.emptyText}>No packing items yet.</Text>
+            ) : (
+              packingSections.map((section) => (
+                <Animated.View
+                  key={section.id}
+                  entering={sectionEntrance.delay(80)}
+                  style={styles.packingSection}
+                >
+                  <Text style={styles.sectionHeader}>{section.title}</Text>
+                  {section.items.map((item) => (
+                    <PackingItemRow
+                      key={item.id}
+                      item={item}
+                      onToggle={(id) => handleTogglePacking(section.id, id)}
+                    />
+                  ))}
+                </Animated.View>
+              ))
+            )}
           </View>
         )}
 
         {/* Etiquette Tab */}
         {activeTab === 'etiquette' && (
           <View style={styles.tabContent}>
-            {etiquette.map((item, index) => (
-              <EtiquetteCard key={item.id} item={item} index={index} />
-            ))}
+            {etiquette.length === 0 ? (
+              <Text style={styles.emptyText}>No etiquette tips yet.</Text>
+            ) : (
+              etiquette.map((item, index) => (
+                <EtiquetteCard key={item.id} item={item} index={index} />
+              ))
+            )}
           </View>
         )}
 
@@ -912,5 +825,16 @@ const styles = StyleSheet.create({
   },
   skipPrepSheetCancel: {
     width: '100%',
+  },
+  loadingText: {
+    marginTop: spacing.md,
+    color: colors.textSecondary,
+    ...typography.body,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: colors.textSecondary,
+    ...typography.body,
+    paddingVertical: spacing.xl,
   },
 });

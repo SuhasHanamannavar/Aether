@@ -1,54 +1,22 @@
 import { v4 as uuidv4 } from 'uuid';
 
-const DESTINATIONS: Record<string, { regions: any[], archetypes: any[], places: any[] }> = {
-  japan: {
-    regions: [
-      { name: 'Tokyo', emoji: '🗼', lat: 35.6762, lng: 139.6503 },
-      { name: 'Kyoto', emoji: '⛩️', lat: 35.0116, lng: 135.7681 },
-      { name: 'Osaka', emoji: '🏯', lat: 34.6937, lng: 135.5023 },
-      { name: 'Hokkaido', emoji: '❄️', lat: 43.2203, lng: 142.8636 },
-      { name: 'Okinawa', emoji: '🏝️', lat: 26.3344, lng: 127.8056 },
-    ],
-    archetypes: [
-      { id: 'culinary', title: 'The Culinary Journey', subtitle: 'Taste the heart of Japan', emoji: '🍜', color: '#E8A87C', score: 94, highlights: ['Sushi masterclasses', 'Street food tours', 'Sake tasting'], priceRange: { min: 1500, max: 3500 } },
-      { id: 'zen', title: 'The Zen Garden Retreat', subtitle: 'Find your inner peace', emoji: '🏯', color: '#41B3A3', score: 91, highlights: ['Temple stays', 'Tea ceremonies', 'Onsen baths'], priceRange: { min: 1800, max: 4000 } },
-      { id: 'urban', title: 'The Urban Explorer', subtitle: 'City lights & hidden alleys', emoji: '🌃', color: '#1A1A2E', score: 88, highlights: ['Neon Tokyo nights', 'Akihabara anime', 'Rooftop bars'], priceRange: { min: 1200, max: 3000 } },
-      { id: 'nature', title: 'The Mountain Wanderer', subtitle: 'Trails, peaks & sunrise', emoji: '🏔️', color: '#10B981', score: 86, highlights: ['Mt. Fuji trek', 'Bamboo forests', 'Alpine villages'], priceRange: { min: 1000, max: 2800 } },
-    ],
-    places: [
-      { id: 'r1', name: 'Ichiran Ramen', type: 'restaurant', lat: 35.6938, lng: 139.7036, priceLevel: 1, score: 94, cuisine: 'Ramen', emoji: '🍜', isTouristTrap: false },
-      { id: 'r2', name: 'Sushi Saito', type: 'restaurant', lat: 35.6605, lng: 139.7292, priceLevel: 3, score: 96, cuisine: 'Sushi', emoji: '🍣', isTouristTrap: false },
-      { id: 'r3', name: 'Uobei', type: 'restaurant', lat: 35.6595, lng: 139.7004, priceLevel: 1, score: 91, cuisine: 'Sushi', emoji: '🍣', isTouristTrap: false },
-      { id: 'r4', name: 'Gyoza King', type: 'restaurant', lat: 35.6678, lng: 139.7026, priceLevel: 2, score: 88, cuisine: 'Gyoza', emoji: '🥟', isTouristTrap: false },
-      { id: 'a1', name: 'Tsukiji Fish Market', type: 'activity', lat: 35.6654, lng: 139.7707, priceLevel: 1, score: 90, emoji: '🐟' },
-      { id: 'a2', name: 'Shibuya Crossing', type: 'activity', lat: 35.6595, lng: 139.7004, priceLevel: 0, score: 87, emoji: '🚶' },
-      { id: 'a3', name: 'Fushimi Inari Shrine', type: 'activity', lat: 34.9671, lng: 135.7727, priceLevel: 0, score: 93, emoji: '⛩️' },
-      { id: 'a4', name: 'Arashiyama Bamboo Grove', type: 'activity', lat: 35.0170, lng: 135.6713, priceLevel: 0, score: 91, emoji: '🎋' },
-      { id: 'a5', name: 'Tea Ceremony Experience', type: 'activity', lat: 35.0036, lng: 135.7751, priceLevel: 2, score: 91, emoji: '🍵' },
-      { id: 'h1', name: 'Shinjuku Granbell Hotel', type: 'hotel', lat: 35.6938, lng: 139.7036, priceLevel: 2, score: 88, emoji: '🏨' },
-      { id: 'h2', name: 'Kyoto Ryokan Zen', type: 'hotel', lat: 35.0116, lng: 135.7681, priceLevel: 3, score: 93, emoji: '🏯' },
-    ],
-  },
-};
-
-function getDestinationData(destination: string) {
-  const key = destination?.toLowerCase() || 'japan';
-  return DESTINATIONS[key] || DESTINATIONS['japan'];
-}
+const BASE_ARCHETYPES = [
+  { id: 'culinary', title: 'The Culinary Journey', subtitle: 'Taste the heart of the destination', emoji: '🍜', color: '#E8A87C', score: 90, highlights: ['Local cuisine tours', 'Street food markets', 'Cooking classes'], priceRange: { min: 1000, max: 3500 } },
+  { id: 'zen', title: 'The Zen Retreat', subtitle: 'Find your inner peace', emoji: '🏯', color: '#41B3A3', score: 88, highlights: ['Wellness activities', 'Cultural sites', 'Nature walks'], priceRange: { min: 1200, max: 4000 } },
+  { id: 'urban', title: 'The Urban Explorer', subtitle: 'City lights & hidden gems', emoji: '🌃', color: '#1A1A2E', score: 85, highlights: ['City landmarks', 'Local nightlife', 'Shopping districts'], priceRange: { min: 800, max: 3000 } },
+  { id: 'nature', title: 'The Nature Wanderer', subtitle: 'Trails, peaks & sunrises', emoji: '🏔️', color: '#10B981', score: 83, highlights: ['Hiking trails', 'Scenic viewpoints', 'Outdoor adventures'], priceRange: { min: 600, max: 2800 } },
+];
 
 export function generateCanvas(trip: any) {
-  const dest = getDestinationData(trip.destination);
-
-  const scoredArchetypes = dest.archetypes.map((arch: any) => {
+  const scoredArchetypes = BASE_ARCHETYPES.map((arch: any) => {
     let scoreAdjust = 0;
     if (trip.budget) {
       const midPrice = (arch.priceRange.min + arch.priceRange.max) / 2;
-      if (trip.budget >= midPrice) scoreAdjust += 5;
-      else scoreAdjust += 2;
+      scoreAdjust += trip.budget >= midPrice ? 5 : 2;
     }
     if (trip.vibeTags?.length) {
       const matchCount = trip.vibeTags.filter((v: string) =>
-        arch.highlights.some((h: string) => h.toLowerCase().includes(v))
+        arch.highlights.some((h: string) => h.toLowerCase().includes(v.toLowerCase()))
       ).length;
       scoreAdjust += matchCount * 3;
     }
@@ -58,132 +26,78 @@ export function generateCanvas(trip: any) {
   scoredArchetypes.sort((a: any, b: any) => b.score - a.score);
 
   return {
-    destination: trip.destination || 'Japan',
-    regions: dest.regions,
+    destination: trip.destination || 'Your Destination',
+    dateStart: trip.dateStart || null,
+    dateEnd: trip.dateEnd || null,
+    budget: trip.budget || null,
     archetypes: scoredArchetypes,
-    activeFilters: ['value-for-money'],
   };
 }
 
-function getTransportSegments(mode: string) {
-  if (mode === 'drive') {
-    return [
-      { type: 'drive', title: 'Drive leg 1 • Departure', time: '08:00 - 10:30', price: 25, score: 85, emoji: '🚗' },
-      { type: 'drive', title: 'Fuel stop • Rest area', time: '10:30 - 10:45', price: 45, score: 80, emoji: '⛽' },
-      { type: 'drive', title: 'Drive leg 2 • Arrival', time: '10:45 - 13:00', price: 25, score: 85, emoji: '🚗' },
-    ];
-  }
-  if (mode === 'transit') {
-    return [
-      { type: 'transit', title: 'Express Train • Shinjuku Stn', time: '08:30 - 10:00', price: 15, score: 88, emoji: '🚄' },
-      { type: 'transit', title: 'Local Line • Transfer', time: '10:15 - 11:00', price: 5, score: 82, emoji: '🚃' },
-      { type: 'transit', title: 'Bus • Final leg', time: '11:10 - 11:45', price: 3, score: 78, emoji: '🚌' },
-    ];
-  }
-  if (mode === 'walk') {
-    return [
-      { type: 'walk', title: 'Walking route • Segment 1', time: '09:00 - 09:40', price: 0, score: 90, emoji: '🚶' },
-      { type: 'walk', title: 'Rest stop • Park bench', time: '09:40 - 10:00', price: 0, score: 85, emoji: '🪑' },
-      { type: 'walk', title: 'Walking route • Segment 2', time: '10:00 - 10:30', price: 0, score: 90, emoji: '🚶' },
-    ];
-  }
-  if (mode === 'bike') {
-    return [
-      { type: 'bike', title: 'Cycle path • Leg 1', time: '08:30 - 09:15', price: 0, score: 87, emoji: '🚲' },
-      { type: 'bike', title: 'Bike parking • Stop', time: '09:15 - 09:30', price: 2, score: 80, emoji: '🅿️' },
-      { type: 'bike', title: 'Cycle path • Leg 2', time: '09:30 - 10:10', price: 0, score: 87, emoji: '🚲' },
-    ];
-  }
-  // fly (default)
-  return [
-    { type: 'flight', title: 'JAL 42 • Narita Airport', time: '10:00 - 14:30', price: 680, score: 92, emoji: '✈️' },
-    { type: 'flight', title: 'JAL 41 • Return to Home', time: '16:00 - 08:30', price: 680, score: 90, emoji: '✈️' },
-  ];
-}
-
 export function generateItinerary(trip: any, userId: string) {
-  const dest = getDestinationData(trip.destination);
   const items: any[] = [];
   const tripId = trip.tripId;
-  const archetype = trip.archetype || 'culinary';
   const transportMode = trip.transportMode || 'fly';
   const days = 3;
 
-  const places = dest.places;
-  const transportSegments = getTransportSegments(transportMode);
+  const transportLabel = (mode: string): string => {
+    const labels: Record<string, string> = {
+      drive: '🚗 Drive',
+      transit: '🚄 Transit',
+      walk: '🚶 Walk',
+      bike: '🚲 Bike',
+      fly: '✈️ Flight',
+    };
+    return labels[mode] || '✈️ Flight';
+  };
 
-  const archetypeActivities = places.filter((p: any) =>
-    archetype === 'culinary' ? p.type === 'restaurant' || p.name.toLowerCase().includes('market') :
-    archetype === 'zen' ? p.name.toLowerCase().includes('shrine') || p.name.toLowerCase().includes('temple') || p.name.toLowerCase().includes('bamboo') || p.name.toLowerCase().includes('tea') :
-    archetype === 'urban' ? p.type !== 'hotel' :
-    p.type === 'activity'
-  );
+  for (let d = 1; d <= days; d++) {
+    items.push({
+      itemId: uuidv4(), tripId, day: d, order: 0,
+      type: 'transport',
+      title: d === 1 ? `${transportLabel(transportMode)} • Departure` : d === days ? `${transportLabel(transportMode)} • Return` : `${transportLabel(transportMode)} • Transfer`,
+      time: d === 1 ? '10:00' : d === days ? '16:00' : '09:00',
+      price: transportMode === 'fly' ? 680 : transportMode === 'drive' ? 45 : transportMode === 'transit' ? 25 : 0,
+      score: 85,
+      emoji: transportMode === 'drive' ? '🚗' : transportMode === 'transit' ? '🚄' : transportMode === 'walk' ? '🚶' : transportMode === 'bike' ? '🚲' : '✈️',
+      bookingStatus: 'unbooked',
+      geoLocation: null,
+    });
 
-  const shuffled = [...archetypeActivities].sort(() => Math.random() - 0.5);
+    items.push({
+      itemId: uuidv4(), tripId, day: d, order: 1,
+      type: 'accommodation',
+      title: 'Accommodation • Night',
+      time: '15:00',
+      price: 120,
+      score: 85,
+      emoji: '🏨',
+      bookingStatus: 'unbooked',
+      geoLocation: null,
+    });
 
-  // Day 1: Arrival — transport segment replaces flight
-  items.push({
-    itemId: uuidv4(), tripId, day: 1, order: 0,
-    ...transportSegments[0], bookingStatus: 'unbooked',
-    geoLocation: { lat: 35.6762, lng: 139.6503 },
-  });
-  const hotel1 = places.find((p: any) => p.id === 'h1');
-  if (hotel1) {
     items.push({
-      itemId: uuidv4(), tripId, day: 1, order: 1,
-      type: 'hotel', title: hotel1.name, time: 'Check-in: 15:00',
-      price: hotel1.priceLevel * 100 + 50, score: hotel1.score, emoji: hotel1.emoji,
-      bookingStatus: 'unbooked', geoLocation: { lat: hotel1.lat, lng: hotel1.lng },
+      itemId: uuidv4(), tripId, day: d, order: 2,
+      type: 'activity',
+      title: 'Explore the destination',
+      time: '10:00 - 18:00',
+      price: 0,
+      score: 85,
+      emoji: '📍',
+      bookingStatus: 'unbooked',
+      geoLocation: null,
     });
-  }
-  const evenAct = shuffled.find((p: any) => p.type === 'restaurant' || archetype !== 'culinary');
-  if (evenAct) {
-    items.push({
-      itemId: uuidv4(), tripId, day: 1, order: 2,
-      type: evenAct.type === 'restaurant' ? 'dining' : 'activity',
-      title: evenAct.name, time: '19:00 - 21:00',
-      price: evenAct.priceLevel * 30 + 10, score: evenAct.score, emoji: evenAct.emoji,
-      bookingStatus: 'unbooked', geoLocation: { lat: evenAct.lat, lng: evenAct.lng },
-    });
-  }
 
-  // Day 2: Exploration — include a transport segment
-  const day2Acts = shuffled.slice(1, 3);
-  day2Acts.forEach((act: any, i: number) => {
     items.push({
-      itemId: uuidv4(), tripId, day: 2, order: i,
-      type: act.type === 'restaurant' ? 'dining' : 'activity',
-      title: act.name,
-      time: i === 0 ? '06:00 - 09:00' : '10:00 - 16:00',
-      price: act.priceLevel * 30 + 10, score: act.score, emoji: act.emoji,
-      bookingStatus: 'unbooked', geoLocation: { lat: act.lat, lng: act.lng },
-    });
-  });
-  if (transportSegments[1]) {
-    items.push({
-      itemId: uuidv4(), tripId, day: 2, order: 2,
-      ...transportSegments[1], bookingStatus: 'unbooked',
-      geoLocation: { lat: 35.6762, lng: 139.6503 },
-    });
-  }
-
-  // Day 3: Day trip + return transport
-  const day3Act = shuffled.slice(3, 5);
-  day3Act.forEach((act: any, i: number) => {
-    items.push({
-      itemId: uuidv4(), tripId, day: 3, order: i,
-      type: act.type === 'restaurant' ? 'dining' : 'activity',
-      title: act.name,
-      time: i === 0 ? '07:00 - 09:00' : '09:30 - 12:00',
-      price: act.priceLevel * 30 + 10, score: act.score, emoji: act.emoji,
-      bookingStatus: 'unbooked', geoLocation: { lat: act.lat, lng: act.lng },
-    });
-  });
-  if (transportSegments[2]) {
-    items.push({
-      itemId: uuidv4(), tripId, day: 3, order: 2,
-      ...transportSegments[2], bookingStatus: 'unbooked',
-      geoLocation: { lat: 35.6762, lng: 139.6503 },
+      itemId: uuidv4(), tripId, day: d, order: 3,
+      type: 'dining',
+      title: 'Local dining experience',
+      time: '19:00',
+      price: 40,
+      score: 85,
+      emoji: '🍽️',
+      bookingStatus: 'unbooked',
+      geoLocation: null,
     });
   }
 
@@ -191,10 +105,7 @@ export function generateItinerary(trip: any, userId: string) {
 }
 
 export function generateRestaurants(lat: number, lng: number, theme: string, budget: number) {
-  const dest = DESTINATIONS['japan'];
-  const restaurants = dest.places.filter((p: any) => p.type === 'restaurant');
-  return restaurants.map((r: any) => ({
-    ...r,
-    distance: Math.round(Math.sqrt(Math.pow((r.lat - lat) * 111, 2) + Math.pow((r.lng - lng) * 85, 2))),
-  })).sort((a: any, b: any) => a.distance - b.distance).slice(0, 5);
+  return [];
 }
+
+export const archetypes = BASE_ARCHETYPES;

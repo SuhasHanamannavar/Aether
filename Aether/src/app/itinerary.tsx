@@ -23,119 +23,27 @@ import { tripsApi } from '../services/api';
 import TransportBar from '../components/TransportBar';
 import type { TransportMode } from '../components/TransportBar';
 
-const defaultDays = [
-  {
-    day: 1,
-    title: 'Arrival in Tokyo',
-    date: 'Mon, Oct 14',
-    items: [
-      {
-        id: 'flight-1',
-        type: 'flight',
-        title: 'JAL 42 • Narita Airport',
-        time: '10:00 - 14:30',
-        price: '$680',
-        score: 92,
-        emoji: '✈️',
-      },
-      {
-        id: 'hotel-1',
-        type: 'hotel',
-        title: 'Shinjuku Granbell Hotel',
-        time: 'Check-in: 15:00',
-        price: '$210/night',
-        score: 88,
-        emoji: '🏨',
-      },
-      {
-        id: 'activity-1',
-        type: 'activity',
-        title: 'Evening Ramen Tour',
-        time: '19:00 - 21:00',
-        price: '$45',
-        score: 95,
-        emoji: '🍜',
-      },
-    ],
-  },
-  {
-    day: 2,
-    title: 'Tokyo Exploration',
-    date: 'Tue, Oct 15',
-    items: [
-      {
-        id: 'activity-2',
-        type: 'activity',
-        title: 'Tsukiji Fish Market',
-        time: '06:00 - 09:00',
-        price: '$30',
-        score: 90,
-        emoji: '🐟',
-      },
-      {
-        id: 'activity-3',
-        type: 'activity',
-        title: 'Shibuya & Harajuku Walk',
-        time: '10:00 - 16:00',
-        price: 'Free',
-        score: 87,
-        emoji: '🚶',
-      },
-      {
-        id: 'dining-1',
-        type: 'dining',
-        title: 'Sushi Saito (Dinner)',
-        time: '19:00',
-        price: '$120',
-        score: 96,
-        emoji: '🍣',
-      },
-    ],
-  },
-  {
-    day: 3,
-    title: 'Kyoto Day Trip',
-    date: 'Wed, Oct 16',
-    items: [
-      {
-        id: 'activity-4',
-        type: 'activity',
-        title: 'Shinkansen to Kyoto',
-        time: '07:00 - 09:00',
-        price: '$110',
-        score: 85,
-        emoji: '🚄',
-      },
-      {
-        id: 'activity-5',
-        type: 'activity',
-        title: 'Fushimi Inari Shrine',
-        time: '09:30 - 12:00',
-        price: 'Free',
-        score: 93,
-        emoji: '⛩️',
-      },
-      {
-        id: 'activity-6',
-        type: 'activity',
-        title: 'Bamboo Grove & Tea Ceremony',
-        time: '13:00 - 16:00',
-        price: '$55',
-        score: 91,
-        emoji: '🍵',
-      },
-    ],
-  },
-];
+interface ItineraryItem {
+  id: string;
+  itemId?: string;
+  type: string;
+  title: string;
+  time: string;
+  price: string | number;
+  score: number;
+  emoji: string;
+  bookingStatus?: string;
+  geoLocation?: { lat: number; lng: number } | null;
+}
 
 const typeColors: Record<string, string> = {
   flight: '#41B3A3',
   hotel: '#E8A87C',
   activity: '#1A1A2E',
   dining: '#F59E0B',
+  transport: '#6B7280',
+  accommodation: '#8B5CF6',
 };
-
-type ItineraryItem = typeof defaultDays[0]['items'][0];
 
 function TimelineItem({
   item,
@@ -263,11 +171,11 @@ export default function ItineraryScreen() {
   const [expandedItem, setExpandedItem] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'timeline' | 'map'>('timeline');
   const [showRestaurantSheet, setShowRestaurantSheet] = useState(false);
+  const [restaurants, setRestaurants] = useState<any[]>([]);
   const [reorderMode, setReorderMode] = useState(false);
-  const [days, setDays] = useState(() =>
-    defaultDays.map((d) => ({ ...d, items: [...d.items] }))
-  );
+  const [days, setDays] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 
   useEffect(() => {
@@ -287,10 +195,24 @@ export default function ItineraryScreen() {
           const apiDays = Object.values(grouped).sort((a: any, b: any) => a.day - b.day);
           if (apiDays.length > 0) setDays(apiDays as any);
         }
-      } catch { /* use defaults */ }
+      } catch (e: any) {
+        setError(e.message || 'Failed to load itinerary');
+      }
       setLoading(false);
     })();
   }, [trip.tripId]);
+
+  useEffect(() => {
+    const tid = trip.tripId;
+    if (showRestaurantSheet && tid) {
+      (async () => {
+        try {
+          const data = await tripsApi.getRestaurants(tid, 0, 0);
+          if (data && Array.isArray(data)) setRestaurants(data);
+        } catch {}
+      })();
+    }
+  }, [showRestaurantSheet, trip.tripId]);
 
   const handleTimelinePress = useCallback((id: string) => {
     setExpandedItem((prev) => (prev === id ? null : id));
@@ -329,7 +251,7 @@ export default function ItineraryScreen() {
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Smart Itinerary</Text>
-          <Text style={styles.headerSubtitle}>The Culinary Journey • Japan</Text>
+          <Text style={styles.headerSubtitle}>{trip.destination || 'Your Trip'} • {trip.transportMode || 'fly'}</Text>
         </View>
         <TouchableOpacity
           onPress={() => { setReorderMode((p) => !p); setExpandedItem(null); }}
@@ -366,7 +288,24 @@ export default function ItineraryScreen() {
         </Animated.View>
       )}
 
-      {activeTab === 'timeline' && !reorderMode ? (
+      {loading ? (
+        <View style={styles.centerState}>
+          <Text style={styles.centerEmoji}>📋</Text>
+          <Text style={styles.centerTitle}>Building your itinerary...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.centerState}>
+          <Text style={styles.centerEmoji}>⚠️</Text>
+          <Text style={styles.centerTitle}>Could not load itinerary</Text>
+          <Text style={styles.centerDesc}>{error}</Text>
+        </View>
+      ) : days.length === 0 ? (
+        <View style={styles.centerState}>
+          <Text style={styles.centerEmoji}>🗺️</Text>
+          <Text style={styles.centerTitle}>No itinerary yet</Text>
+          <Text style={styles.centerDesc}>Generate a trip canvas to create your itinerary</Text>
+        </View>
+      ) : activeTab === 'timeline' && !reorderMode ? (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
           {days.map((day, dayIndex) => (
             <Animated.View
@@ -390,7 +329,7 @@ export default function ItineraryScreen() {
               </View>
 
               <View style={styles.timeline}>
-                {day.items.map((item, itemIndex) => (
+                {day.items.map((item: any, itemIndex: number) => (
                   <TimelineItem
                     key={item.id}
                     item={item}
@@ -427,22 +366,16 @@ export default function ItineraryScreen() {
             center={[137.6836, 36.1000]}
             zoom={5.5}
             interactive={true}
-            markers={[
-              { coordinates: [139.6917, 35.6895], title: 'Tokyo', emoji: '🗼', color: '#41B3A3' },
-              { coordinates: [135.7681, 35.0116], title: 'Kyoto', emoji: '⛩️', color: '#E8A87C' },
-            ]}
+            markers={days.flatMap((d: any) =>
+              (d.items || []).filter((i: any) => i.geoLocation?.lat).map((i: any) => ({
+                coordinates: [i.geoLocation.lng, i.geoLocation.lat] as [number, number],
+                title: i.title,
+                emoji: i.emoji || '📍',
+                color: typeColors[i.type] || '#E8A87C',
+              }))
+            )}
             colorScheme="Light"
           />
-          <View style={styles.mapLegend}>
-            <View style={styles.mapLegendInner}>
-              {['Tokyo', 'Kyoto'].map((city) => (
-                <View key={city} style={styles.legendItem}>
-                  <View style={[styles.legendDot, { backgroundColor: city === 'Tokyo' ? '#41B3A3' : '#E8A87C' }]} />
-                  <Text style={styles.legendText}>{city}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
         </View>
       ) : reorderMode && (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
@@ -462,7 +395,7 @@ export default function ItineraryScreen() {
               </View>
 
               <View style={styles.timeline}>
-                {day.items.map((item, itemIndex) => (
+                {day.items.map((item: any, itemIndex: number) => (
                   <TimelineItem
                     key={item.id}
                     item={item}
@@ -490,7 +423,7 @@ export default function ItineraryScreen() {
         >
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total estimated</Text>
-            <Text style={styles.totalPrice}>$1,250</Text>
+            <Text style={styles.totalPrice}>$0</Text>
           </View>
           <Button title="Book All" onPress={() => router.push('/booking')} size="md" style={styles.bookAllBtn} />
         </Animated.View>
@@ -525,40 +458,21 @@ export default function ItineraryScreen() {
       {/* Restaurant Suggestions Sheet */}
       <BottomSheet
         visible={showRestaurantSheet}
-        title="Tonight's Picks"
+        title="Nearby Restaurants"
         onClose={() => setShowRestaurantSheet(false)}
       >
         <View style={styles.restaurantList}>
-          <View style={styles.restaurantItem}>
-            <Text style={styles.restaurantEmoji}>🍜</Text>
-            <View style={styles.restaurantInfo}>
-              <Text style={styles.restaurantName}>Ichiran Ramen</Text>
-              <Text style={styles.restaurantDetail}>Shinjuku • 5 min walk • $$</Text>
+          {restaurants.length === 0 ? (
+            <Text style={styles.emptyText}>No restaurants found nearby. Try searching in a different area.</Text>
+          ) : restaurants.slice(0, 5).map((r: any, i: number) => (
+            <View key={i} style={styles.restaurantItem}>
+              <Text style={styles.restaurantEmoji}>🍽️</Text>
+              <View style={styles.restaurantInfo}>
+                <Text style={styles.restaurantName}>{r.name}</Text>
+                <Text style={styles.restaurantDetail}>{r.address || 'Nearby'}{r.distance ? ` • ${r.distance}m` : ''}</Text>
+              </View>
             </View>
-            <View style={[styles.restaurantScore, { backgroundColor: '#41B3A3' }]}>
-              <Text style={styles.restaurantScoreText}>94</Text>
-            </View>
-          </View>
-          <View style={styles.restaurantItem}>
-            <Text style={styles.restaurantEmoji}>🍣</Text>
-            <View style={styles.restaurantInfo}>
-              <Text style={styles.restaurantName}>Uobei</Text>
-              <Text style={styles.restaurantDetail}>Shibuya • 12 min walk • $</Text>
-            </View>
-            <View style={[styles.restaurantScore, { backgroundColor: '#E8A87C' }]}>
-              <Text style={styles.restaurantScoreText}>91</Text>
-            </View>
-          </View>
-          <View style={styles.restaurantItem}>
-            <Text style={styles.restaurantEmoji}>🥟</Text>
-            <View style={styles.restaurantInfo}>
-              <Text style={styles.restaurantName}>Gyoza King</Text>
-              <Text style={styles.restaurantDetail}>Harajuku • 8 min walk • $$</Text>
-            </View>
-            <View style={[styles.restaurantScore, { backgroundColor: '#1A1A2E' }]}>
-              <Text style={styles.restaurantScoreText}>88</Text>
-            </View>
-          </View>
+          ))}
         </View>
         <Button title="Close" onPress={() => setShowRestaurantSheet(false)} variant="ghost" size="md" style={styles.closeBtn} />
       </BottomSheet>
@@ -998,5 +912,32 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.accent,
     fontWeight: '600',
+  },
+  centerState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+  },
+  centerEmoji: {
+    fontSize: 48,
+    marginBottom: spacing.md,
+  },
+  centerTitle: {
+    ...typography.h3,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  centerDesc: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
+  emptyText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    paddingVertical: spacing.xl,
   },
 });

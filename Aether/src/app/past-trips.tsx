@@ -22,46 +22,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const MOCK_PAST_TRIPS = [
-  {
-    tripId: 'mock_past_kyoto',
-    destination: 'Kyoto',
-    emoji: '🏯',
-    dateStart: '2025-03-15',
-    dateEnd: '2025-03-22',
-    cities: 3,
-    totalSpent: 2400,
-    archetype: 'The Explorer',
-    archetypeColor: '#6366F1',
-    memories: 18,
-  },
-  {
-    tripId: 'mock_past_bali',
-    destination: 'Bali',
-    emoji: '🏝️',
-    dateStart: '2024-11-02',
-    dateEnd: '2024-11-10',
-    cities: 2,
-    totalSpent: 1850,
-    archetype: 'The Relaxer',
-    archetypeColor: '#10B981',
-    memories: 24,
-  },
-  {
-    tripId: 'mock_past_tokyo',
-    destination: 'Tokyo',
-    emoji: '🗼',
-    dateStart: '2024-06-10',
-    dateEnd: '2024-06-18',
-    cities: 4,
-    totalSpent: 3100,
-    archetype: 'The Foodie',
-    archetypeColor: '#F59E0B',
-    memories: 31,
-  },
-];
 
-const FILTERS = ['All', 'This Year', '2025', '2024'];
 
 type PastTrip = {
   tripId: string;
@@ -90,12 +51,11 @@ function tripDays(start: string, end: string) {
 
 function matchesFilter(trip: PastTrip, filter: string) {
   if (filter === 'All') return true;
-  if (filter === 'This Year') {
+  if (filter === 'Recent') {
     const year = new Date(trip.dateStart).getFullYear();
     return year === new Date().getFullYear();
   }
-  const year = new Date(trip.dateStart).getFullYear();
-  return year === parseInt(filter, 10);
+  return true;
 }
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -202,12 +162,10 @@ export default function PastTripsScreen() {
         const data = await tripsApi.list('completed');
         if (data && Array.isArray(data) && data.length > 0) {
           setTrips(data);
-          return;
         }
       } catch {
-        /* fallback to mock data */
+        /* silent */
       }
-      setTrips(MOCK_PAST_TRIPS);
       setLoading(false);
     })();
   }, []);
@@ -249,7 +207,7 @@ export default function PastTripsScreen() {
 
       <View style={styles.filterBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContent}>
-          {FILTERS.map((f) => (
+          {['All', 'Recent'].map((f) => (
             <TouchableOpacity
               key={f}
               activeOpacity={0.7}
@@ -533,5 +491,13 @@ const styles = StyleSheet.create({
   emptyBtn: {
     marginTop: spacing.xxl,
     width: '100%',
+  },
+  loadingText: {
+    fontSize: 15,
+    color: colors.textSecondary,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: colors.textSecondary,
   },
 });

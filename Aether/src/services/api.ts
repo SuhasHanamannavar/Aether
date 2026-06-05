@@ -16,7 +16,7 @@ export function getCurrentUserId(): string | null {
   return currentUserId;
 }
 
-async function request(endpoint: string, options: RequestOptions = {}) {
+export async function request(endpoint: string, options: RequestOptions = {}) {
   const { method = 'GET', body, headers = {} } = options;
 
   const reqHeaders: Record<string, string> = {

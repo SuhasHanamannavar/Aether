@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Animated, { FadeInUp, ZoomIn } from 'react-native-reanimated';
-import { spacing, borderRadius, typography } from '../theme/tokens';
+import { colors, spacing, borderRadius, typography } from '../theme/tokens';
 import { cardEntrance, sectionEntrance, useSpringPress } from '../theme/animations';
 import Button from '../components/Button';
 import BottomSheet from '../components/BottomSheet';
@@ -17,20 +17,6 @@ const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const GAP = 4;
 const PHOTO_SIZE = Math.floor((SCREEN_WIDTH - GAP * 4) / 3);
-
-const THEME = {
-  bg: '#2D4A2D',
-  accent: '#E8A87C',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255,255,255,0.7)',
-  textTertiary: 'rgba(255,255,255,0.4)',
-  glassBg: 'rgba(255,255,255,0.1)',
-  glassBorder: 'rgba(255,255,255,0.18)',
-  glassOverlay: 'rgba(0,0,0,0.5)',
-};
-
-const EMOJI_POOL = ['🏯', '🗼', '🍜', '🌸', '⛩️', '🎋', '🍣', '🎎', '🏔️', '🌊', '🎭', '🍡'];
-const COLOR_POOL = ['#5B4A3F', '#4A6741', '#6B4E5A', '#3F5E6B', '#7A5C3A', '#4B6A5A', '#6A4B5E', '#3E5A4A', '#7E6A4A', '#4A5E6A'];
 
 interface Memory {
   id: string;
@@ -112,13 +98,13 @@ export default function MemoryReelScreen() {
       try {
         const data = await memoriesApi.list(tid);
         if (data && Array.isArray(data) && data.length > 0) {
-          const mapped: Memory[] = data.map((m: any, i: number) => ({
+          const mapped: Memory[] = data.map((m: any) => ({
             id: m.id || genId(),
             imageUrl: m.imageUrl || '',
             caption: m.caption || '',
             day: m.day || 1,
-            emoji: EMOJI_POOL[i % EMOJI_POOL.length],
-            bgColor: COLOR_POOL[i % COLOR_POOL.length],
+            emoji: '📍',
+            bgColor: colors.primary,
           }));
           setMemories(mapped);
           const days = [...new Set(mapped.map((m) => m.day))].sort((a, b) => a - b);
@@ -153,8 +139,8 @@ export default function MemoryReelScreen() {
       imageUrl: newImageUrl.trim(),
       caption: newCaption.trim(),
       day: dayNum,
-      emoji: EMOJI_POOL[memories.length % EMOJI_POOL.length],
-      bgColor: COLOR_POOL[memories.length % COLOR_POOL.length],
+      emoji: '📍',
+      bgColor: colors.primary,
     };
     setMemories((prev) => [...prev, optimistic]);
     setSheetVisible(false);
@@ -168,7 +154,7 @@ export default function MemoryReelScreen() {
       setMemories((prev) => prev.filter((m) => m.id !== optimistic.id));
     }
     setSaving(false);
-  }, [trip.tripId, newImageUrl, newCaption, newDay, memories.length, activeDaySet]);
+  }, [trip.tripId, newImageUrl, newCaption, newDay, activeDaySet]);
 
   const handleDeleteMemory = useCallback((memory: Memory) => {
     const tid = trip.tripId;
@@ -290,7 +276,7 @@ export default function MemoryReelScreen() {
           <TextInput
             style={styles.sheetInput}
             placeholder="Paste image URL..."
-            placeholderTextColor={THEME.textTertiary}
+            placeholderTextColor={colors.textTertiary}
             value={newImageUrl}
             onChangeText={setNewImageUrl}
             autoCapitalize="none"
@@ -300,7 +286,7 @@ export default function MemoryReelScreen() {
           <TextInput
             style={styles.sheetInput}
             placeholder="What happened here?"
-            placeholderTextColor={THEME.textTertiary}
+            placeholderTextColor={colors.textTertiary}
             value={newCaption}
             onChangeText={setNewCaption}
           />
@@ -308,7 +294,7 @@ export default function MemoryReelScreen() {
           <TextInput
             style={styles.sheetInput}
             placeholder="1"
-            placeholderTextColor={THEME.textTertiary}
+            placeholderTextColor={colors.textTertiary}
             value={newDay}
             onChangeText={setNewDay}
             keyboardType="number-pad"
@@ -327,30 +313,30 @@ export default function MemoryReelScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: THEME.bg },
+  container: { flex: 1, backgroundColor: colors.background },
   header: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: spacing.md,
   },
   backBtn: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: THEME.glassBg, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.borderLight, alignItems: 'center', justifyContent: 'center',
     marginRight: spacing.md,
   },
-  backArrow: { fontSize: 20, color: THEME.textPrimary, fontWeight: '600' },
+  backArrow: { fontSize: 20, color: colors.text, fontWeight: '600' },
   headerCenter: { flex: 1 },
-  headerTitle: { ...typography.h2, color: THEME.textPrimary },
+  headerTitle: { ...typography.h2, color: colors.text },
   countBadge: {
     minWidth: 28, height: 28, borderRadius: 14,
-    backgroundColor: THEME.accent, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center',
     paddingHorizontal: spacing.sm,
   },
   countBadgeText: { ...typography.small, color: '#FFFFFF', fontWeight: '700' },
   dayBar: {
     flexDirection: 'row', alignItems: 'center',
     marginHorizontal: spacing.xl, marginBottom: spacing.md,
-    backgroundColor: THEME.glassBg, borderRadius: borderRadius.lg,
-    borderWidth: 1, borderColor: THEME.glassBorder,
+    backgroundColor: colors.borderLight, borderRadius: borderRadius.lg,
+    borderWidth: 1, borderColor: colors.border,
     paddingHorizontal: spacing.sm, paddingVertical: spacing.sm,
   },
   dayArrow: {
@@ -359,7 +345,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   dayArrowDisabled: { opacity: 0.25 },
-  dayArrowText: { fontSize: 16, color: THEME.textPrimary, fontWeight: '600' },
+  dayArrowText: { fontSize: 16, color: colors.text, fontWeight: '600' },
   dayArrowTextDisabled: { color: 'rgba(255,255,255,0.3)' },
   dayPillsRow: {
     flexDirection: 'row', gap: spacing.xs,
@@ -370,8 +356,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs + 2, paddingHorizontal: spacing.md,
     borderRadius: borderRadius.full, backgroundColor: 'rgba(255,255,255,0.06)',
   },
-  dayPillActive: { backgroundColor: THEME.accent },
-  dayNum: { fontSize: 12, fontWeight: '600', color: THEME.textSecondary },
+  dayPillActive: { backgroundColor: colors.accent },
+  dayNum: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
   dayNumActive: { color: '#FFFFFF' },
   dayCount: {
     minWidth: 18, height: 18, borderRadius: 9,
@@ -379,7 +365,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4,
   },
   dayCountActive: { backgroundColor: 'rgba(255,255,255,0.25)' },
-  dayCountText: { fontSize: 10, fontWeight: '700', color: THEME.textSecondary },
+  dayCountText: { fontSize: 10, fontWeight: '700', color: colors.textSecondary },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 2, paddingBottom: 32 },
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: GAP, paddingHorizontal: 2 },
@@ -388,25 +374,25 @@ const styles = StyleSheet.create({
   photoEmoji: { fontSize: 36 },
   capOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: spacing.xs },
   capGlass: {
-    backgroundColor: THEME.glassOverlay, borderRadius: borderRadius.sm,
+    backgroundColor: colors.overlay, borderRadius: borderRadius.sm,
     paddingHorizontal: spacing.sm, paddingVertical: spacing.xs + 1,
   },
   capText: { ...typography.small, color: '#FFFFFF', fontWeight: '500' },
   addCard: {
     marginTop: spacing.lg, marginHorizontal: spacing.lg, alignItems: 'center',
-    backgroundColor: THEME.glassBg, borderRadius: borderRadius.lg, paddingVertical: spacing.xl,
-    borderWidth: 1, borderColor: THEME.glassBorder, borderStyle: 'dashed',
+    backgroundColor: colors.borderLight, borderRadius: borderRadius.lg, paddingVertical: spacing.xl,
+    borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed',
   },
   addCardEmoji: { fontSize: 36, marginBottom: spacing.sm },
-  addCardTitle: { ...typography.bodyBold, color: THEME.textPrimary },
-  addCardDesc: { ...typography.caption, color: THEME.textSecondary, marginTop: 2 },
+  addCardTitle: { ...typography.bodyBold, color: colors.text },
+  addCardDesc: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
   centerBox: { alignItems: 'center', paddingVertical: spacing.xxxl },
   centerEmoji: { fontSize: 36, marginBottom: spacing.md },
-  centerTitle: { ...typography.h3, color: THEME.textPrimary },
+  centerTitle: { ...typography.h3, color: colors.text },
   emptyBox: { alignItems: 'center', paddingVertical: spacing.huge, paddingHorizontal: spacing.xl },
   emptyEmoji: { fontSize: 64, marginBottom: spacing.lg },
-  emptyTitle: { ...typography.h2, color: THEME.textPrimary },
-  emptyDesc: { ...typography.body, color: THEME.textSecondary, marginTop: spacing.sm, textAlign: 'center' },
+  emptyTitle: { ...typography.h2, color: colors.text },
+  emptyDesc: { ...typography.body, color: colors.textSecondary, marginTop: spacing.sm, textAlign: 'center' },
   fsOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center' },
   fsContent: { alignItems: 'center', width: SCREEN_WIDTH - spacing.xxl * 2 },
   fsImage: {
@@ -417,12 +403,12 @@ const styles = StyleSheet.create({
   fsEmoji: { fontSize: 80 },
   fsCaption: {
     marginTop: spacing.lg, width: '100%',
-    backgroundColor: THEME.glassBg, borderRadius: borderRadius.md,
-    borderWidth: 1, borderColor: THEME.glassBorder,
+    backgroundColor: colors.borderLight, borderRadius: borderRadius.md,
+    borderWidth: 1, borderColor: colors.border,
     paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
   },
-  fsCaptionText: { ...typography.body, color: THEME.textPrimary, textAlign: 'center' },
-  fsDay: { ...typography.captionBold, color: THEME.accent, marginTop: spacing.lg, textTransform: 'uppercase', letterSpacing: 1 },
+  fsCaptionText: { ...typography.body, color: colors.text, textAlign: 'center' },
+  fsDay: { ...typography.captionBold, color: colors.accent, marginTop: spacing.lg, textTransform: 'uppercase', letterSpacing: 1 },
   deleteBtn: {
     marginTop: spacing.lg, paddingHorizontal: spacing.xl, paddingVertical: spacing.md,
     borderRadius: borderRadius.full, borderWidth: 1,
@@ -430,12 +416,12 @@ const styles = StyleSheet.create({
   },
   deleteBtnText: { ...typography.captionBold, color: '#EF4444' },
   sheetContent: { gap: spacing.md },
-  sheetLabel: { ...typography.captionBold, color: THEME.textPrimary },
+  sheetLabel: { ...typography.captionBold, color: colors.text },
   sheetInput: {
     backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: borderRadius.md,
-    borderWidth: 1, borderColor: THEME.glassBorder,
+    borderWidth: 1, borderColor: colors.border,
     paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
-    fontSize: 16, color: THEME.textPrimary,
+    fontSize: 16, color: colors.text,
   },
   sheetButton: { marginTop: spacing.sm },
 });

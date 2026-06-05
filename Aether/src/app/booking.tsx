@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -43,21 +43,19 @@ interface BookingItem {
   type: ItemType;
 }
 
+function mapItemType(type: string): ItemType {
+  if (type === 'flight' || type === 'transport') return 'flight';
+  if (type === 'hotel' || type === 'accommodation') return 'hotel';
+  if (type === 'dining' || type === 'food') return 'dining';
+  return 'activity';
+}
+
 const typeConfig: Record<ItemType, { color: string; label: string }> = {
   flight: { color: '#41B3A3', label: 'Flights' },
   hotel: { color: '#E8A87C', label: 'Hotels' },
   activity: { color: '#1A1A2E', label: 'Activities' },
   dining: { color: '#F59E0B', label: 'Dining' },
 };
-
-const defaultItems: BookingItem[] = [
-  { emoji: '✈️', label: 'JAL 42 • Tokyo (Narita)', price: '$680', priceNum: 680, id: 'f1', type: 'flight' },
-  { emoji: '🏨', label: 'Shinjuku Granbell • 3 nights', price: '$630', priceNum: 630, id: 'h1', type: 'hotel' },
-  { emoji: '🍜', label: 'Evening Ramen Tour • Oct 14', price: '$45', priceNum: 45, id: 'a1', type: 'activity' },
-  { emoji: '🍣', label: 'Sushi Saito Reservation', price: '$120', priceNum: 120, id: 'a2', type: 'dining' },
-  { emoji: '🚄', label: 'Shinkansen • Tokyo → Kyoto', price: '$110', priceNum: 110, id: 'a3', type: 'activity' },
-  { emoji: '🍵', label: 'Tea Ceremony Experience', price: '$55', priceNum: 55, id: 'a4', type: 'activity' },
-];
 
 function ConfettiParticle({ index }: { index: number }) {
   const size = 6 + Math.random() * 8;
@@ -92,11 +90,32 @@ export default function BookingScreen() {
   const { userId } = useUser();
   const { trip, setDiyBooking } = useTrip();
   const [step, setStep] = useState<'summary' | 'success' | 'diy-success'>('summary');
-  const [items, setItems] = useState<BookingItem[]>(defaultItems);
+  const [items, setItems] = useState<BookingItem[]>([]);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
   const [confirming, setConfirming] = useState(false);
   const [showSkipSheet, setShowSkipSheet] = useState(false);
   const [diySuccess, setDiySuccess] = useState(false);
+
+  useEffect(() => {
+    if (trip.tripId) {
+      (async () => {
+        try {
+          const data = await tripsApi.getItinerary(trip.tripId!);
+          if (data && data.length > 0) {
+            const mapped: BookingItem[] = data.map((item: any, i: number) => ({
+              id: item.itemId || `item-${i}`,
+              emoji: item.emoji || '📍',
+              label: item.title || 'Item',
+              price: item.price ? `$${item.price}` : '$0',
+              priceNum: typeof item.price === 'number' ? item.price : 0,
+              type: mapItemType(item.type),
+            }));
+            setItems(mapped);
+          }
+        } catch {}
+      })();
+    }
+  }, [trip.tripId]);
 
   const checkScale = useSharedValue(0);
   const checkRotate = useSharedValue(0);
@@ -171,7 +190,7 @@ export default function BookingScreen() {
           <Animated.View entering={FadeInUp.duration(300).delay(500).springify()}>
             <Text style={styles.successTitle}>All Booked!</Text>
             <Text style={styles.successDesc}>
-              Your trip to Japan is confirmed.{'\n'}Everything is saved to your itinerary.
+              Your trip to {trip.destination || 'your destination'} is confirmed.{'\n'}Everything is saved to your itinerary.
             </Text>
           </Animated.View>
 

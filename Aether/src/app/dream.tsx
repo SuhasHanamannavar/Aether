@@ -22,38 +22,7 @@ import { tripsApi } from '../services/api';
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.6;
 
-const suggestedTrips = [
-  {
-    id: 'japan',
-    destination: 'Japan',
-    emoji: '🗾',
-    subtitle: 'Cherry blossom season',
-    score: 96,
-    color: '#E8A87C',
-  },
-  {
-    id: 'italy',
-    destination: 'Italy',
-    emoji: '🍝',
-    subtitle: 'Culinary adventure',
-    score: 92,
-    color: '#41B3A3',
-  },
-  {
-    id: 'peru',
-    destination: 'Peru',
-    emoji: '🏔️',
-    subtitle: 'Machu Picchu awaits',
-    score: 88,
-    color: '#10B981',
-  },
-];
 
-const quickActions = [
-  { id: 'past', emoji: '✈️', label: 'Past Trips', color: colors.primaryLight },
-  { id: 'inspire', emoji: '💡', label: 'Inspiration', color: colors.secondary },
-  { id: 'settings', emoji: '⚙️', label: 'Settings', color: colors.accent },
-];
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -76,6 +45,12 @@ export default function DreamScreen() {
   const { trip } = useTrip();
   const greeting = useMemo(() => getGreeting(), []);
   const [activeTrip, setActiveTrip] = useState<any>(null);
+  const [suggestedTrips, setSuggestedTrips] = useState<any[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true);
+  const [quickActions] = useState([
+    { id: 'past-trips', emoji: '📋', label: 'Past Trips', color: colors.primaryLight },
+    { id: 'new-trip', emoji: '✨', label: 'New Trip', color: colors.secondary },
+  ]);
 
   useEffect(() => {
     if (trip.tripId) {
@@ -91,7 +66,7 @@ export default function DreamScreen() {
   }, [trip.tripId]);
 
   const handleQuickAction = (id: string) => {
-    if (id === 'past') router.push('/past-trips' as any);
+    router.push('/' + id as any);
   };
 
   const handleTripPress = () => {
@@ -162,30 +137,40 @@ export default function DreamScreen() {
               <Text style={styles.seeAllText}>See all</Text>
             </TouchableOpacity>
           </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.suggestedScroll}
-            snapToInterval={CARD_WIDTH + spacing.lg}
-            decelerationRate="fast"
-          >
-            {suggestedTrips.map((trip, index) => (
-              <Animated.View
-                key={trip.id}
-                entering={cardEntrance.delay(350 + index * 80)}
-              >
-                <SuggestionCard
-                  destination={trip.destination}
-                  emoji={trip.emoji}
-                  subtitle={trip.subtitle}
-                  score={trip.score}
-                  color={trip.color}
-                  width={CARD_WIDTH}
-                  onPress={() => router.push('/new-trip')}
-                />
-              </Animated.View>
-            ))}
-          </ScrollView>
+          {suggestionsLoading ? (
+            <View style={styles.emptySuggestions}>
+              <Text style={styles.loadingText}>Finding destinations for you...</Text>
+            </View>
+          ) : suggestedTrips.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.suggestedScroll}
+              snapToInterval={CARD_WIDTH + spacing.lg}
+              decelerationRate="fast"
+            >
+              {suggestedTrips.map((trip, index) => (
+                <Animated.View
+                  key={trip.id}
+                  entering={cardEntrance.delay(350 + index * 80)}
+                >
+                  <SuggestionCard
+                    destination={trip.destination}
+                    emoji={trip.emoji}
+                    subtitle={trip.subtitle}
+                    score={trip.score}
+                    color={trip.color}
+                    width={CARD_WIDTH}
+                    onPress={() => router.push('/new-trip')}
+                  />
+                </Animated.View>
+              ))}
+            </ScrollView>
+          ) : (
+            <View style={styles.emptySuggestions}>
+              <Text style={styles.emptyText}>No suggestions yet</Text>
+            </View>
+          )}
         </Animated.View>
 
         {/* Quick Actions */}
@@ -297,5 +282,18 @@ const styles = StyleSheet.create({
   },
   actionsGrid: {
     marginTop: spacing.lg,
+  },
+  emptySuggestions: {
+    alignItems: 'center',
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+  },
+  loadingText: {
+    fontSize: 15,
+    color: colors.textSecondary,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: colors.textSecondary,
   },
 });

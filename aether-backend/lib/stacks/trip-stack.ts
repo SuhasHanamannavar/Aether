@@ -1,6 +1,7 @@
 import { Duration, Fn, Stack, StackProps } from 'aws-cdk-lib';
 import { AttributeType, ProjectionType, Table } from 'aws-cdk-lib/aws-dynamodb';
 import { IRestApi, RestApi } from 'aws-cdk-lib/aws-apigateway';
+import { Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import { ApiLambda } from '../constructs/api-lambda';
 import { DynamoTable } from '../constructs/dynamo-table';
@@ -88,6 +89,7 @@ export class TripStack extends Stack {
         ITINERARY_TABLE: itineraryTable.tableName,
         EXPENSES_TABLE: expensesTable.tableName,
         MEMORIES_TABLE: memoriesTable.tableName,
+        PLACE_INDEX_NAME: `${props.appName}PlaceIndex`,
       },
       timeout: Duration.seconds(60),
       memorySize: 512,
@@ -97,6 +99,13 @@ export class TripStack extends Stack {
     itineraryTable.grantReadWriteData(tripService.lambda);
     expensesTable.grantReadWriteData(tripService.lambda);
     memoriesTable.grantReadWriteData(tripService.lambda);
+
+    // Location Service permission for place search
+    tripService.lambda.addToRolePolicy(new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ['geo:SearchPlaceIndexForText'],
+      resources: ['*'],
+    }));
 
     // --- API Routes ---
 

@@ -5,6 +5,7 @@ import { UserStack } from '../lib/stacks/user-stack';
 import { TripStack } from '../lib/stacks/trip-stack';
 import { BookingStack } from '../lib/stacks/booking-stack';
 import { NotificationStack } from '../lib/stacks/notification-stack';
+import { LocationStack } from '../lib/stacks/location-stack';
 
 const app = new App();
 
@@ -44,6 +45,12 @@ new NotificationStack(app, `${appName}NotificationStack`, {
   env,
   appName,
   tripTable: tripStack.tripTable,
+});
+
+new LocationStack(app, `${appName}LocationStack`, {
+  env,
+  appName,
+  stackName: `${appName}LocationStack`,
 });
 
 app.synth();

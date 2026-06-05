@@ -1,4 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { LocationClient, SearchPlaceIndexForTextCommand } from '@aws-sdk/client-location';
 import {
   DynamoDBDocumentClient,
   GetCommand,
@@ -10,14 +11,15 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
 import { archetypes, generateItinerary, generateRestaurants, generateCanvas } from './canvas';
-import { mockTrips, mockPlaces } from './data/mock-data';
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+const locationClient = new LocationClient({});
 
 const TRIPS_TABLE = process.env.TRIPS_TABLE!;
 const ITINERARY_TABLE = process.env.ITINERARY_TABLE!;
 const EXPENSES_TABLE = process.env.EXPENSES_TABLE!;
 const MEMORIES_TABLE = process.env.MEMORIES_TABLE!;
+const PLACE_INDEX = process.env.PLACE_INDEX_NAME || 'ZeloPlaceIndex';
 
 export const handler = async (event: any) => {
   try {
@@ -190,88 +192,78 @@ export const handler = async (event: any) => {
       return respond(200, { message: 'Reordered' }, headers);
     }
 
-    // GET /trips/{tripId}/restaurants
+    // GET /trips/{tripId}/restaurants — real Amazon Location Service search
     if (path === '/trips/{tripId}/restaurants' && method === 'GET') {
-      const lat = parseFloat(queryParams.lat || '35.6762');
-      const lng = parseFloat(queryParams.lng || '139.6503');
+      const lat = parseFloat(queryParams.lat || '0');
+      const lng = parseFloat(queryParams.lng || '0');
       const trip = await ddb.send(new GetCommand({ TableName: TRIPS_TABLE, Key: { tripId } }));
-      const theme = trip.Item?.archetype || 'culinary';
-      const budget = trip.Item?.budget || 100;
-      const suggestions = generateRestaurants(lat, lng, theme, budget);
-      return respond(200, suggestions, headers);
-    }
-
-    // GET /trips/{tripId}/bookings
-    if (path === '/trips/{tripId}/bookings' && method === 'GET') {
-      return respond(200, mockTrips.filter((t: any) => t.tripId === tripId), headers);
+      const destination = trip.Item?.destination || '';
+      let results: any[] = [];
+      if (lat && lng) {
+        try {
+          const searchCmd = new SearchPlaceIndexForTextCommand({
+            IndexName: PLACE_INDEX,
+            Text: `restaurants near ${lat},${lng}`,
+            BiasPosition: [lng, lat],
+            MaxResults: 10,
+            Language: 'en',
+          });
+          const searchResult = await locationClient.send(searchCmd);
+          results = (searchResult.Results || []).map((r: any) => ({
+            name: r.Place?.Label?.split(',')[0] || r.Place?.Label || 'Restaurant',
+            address: r.Place?.Address?.Label || r.Place?.Label || '',
+            coordinates: r.Place?.Geometry?.Point,
+            distance: r.Distance ? Math.round(r.Distance) : undefined,
+          }));
+        } catch (e) {
+          console.error('Place search failed, returning empty:', e);
+        }
+      } else if (destination) {
+        try {
+          const searchCmd = new SearchPlaceIndexForTextCommand({
+            IndexName: PLACE_INDEX,
+            Text: `restaurants in ${destination}`,
+            MaxResults: 10,
+            Language: 'en',
+          });
+          const searchResult = await locationClient.send(searchCmd);
+          results = (searchResult.Results || []).map((r: any) => ({
+            name: r.Place?.Label?.split(',')[0] || r.Place?.Label || 'Restaurant',
+            address: r.Place?.Address?.Label || r.Place?.Label || '',
+            coordinates: r.Place?.Geometry?.Point,
+            distance: r.Distance ? Math.round(r.Distance) : undefined,
+          }));
+        } catch (e) {
+          console.error('Place search failed, returning empty:', e);
+        }
+      }
+      return respond(200, results, headers);
     }
 
     // GET /trips/{tripId}/prep
     if (path === '/trips/{tripId}/prep' && method === 'GET') {
       const trip = await ddb.send(new GetCommand({ TableName: TRIPS_TABLE, Key: { tripId } }));
-      const destination = trip.Item?.destination || 'Japan';
+      const destination = trip.Item?.destination || '';
       const transportMode = trip.Item?.transportMode || 'fly';
-      const transportItems: any[] = [];
-      if (transportMode === 'drive') {
-        transportItems.push(
-          { id: 'vehicle-check', title: 'Vehicle maintenance check', status: 'pending', notes: 'Oil, tires, brakes, fluids' },
-          { id: 'fuel-stops', title: 'Plan fuel stops', status: 'pending', notes: 'Mark gas stations along route' },
-          { id: 'offline-maps', title: 'Download offline maps', status: 'pending', notes: 'Navigation without data' },
-          { id: 'road-kit', title: 'Emergency road kit', status: 'pending', notes: 'Spare tire, jumper cables, first aid' },
-        );
-      } else if (transportMode === 'transit') {
-        transportItems.push(
-          { id: 'transit-pass', title: 'Get transit pass / IC card', status: 'pending', notes: 'Pre-load with sufficient balance' },
-          { id: 'route-maps', title: 'Download route maps', status: 'pending', notes: 'Station diagrams & line maps' },
-          { id: 'station-connections', title: 'Research station connections', status: 'pending', notes: 'Transfer points & walking times' },
-          { id: 'schedule-app', title: 'Install transit schedule app', status: 'pending', notes: 'Real-time departures & alerts' },
-        );
-      } else if (transportMode === 'walk') {
-        transportItems.push(
-          { id: 'walking-routes', title: 'Plan walking routes', status: 'pending', notes: 'Scenic paths & shortcuts' },
-          { id: 'footwear', title: 'Pack comfortable footwear', status: 'pending', notes: 'Walking shoes, insoles, blister care' },
-          { id: 'weather-check', title: 'Check weather conditions', status: 'pending', notes: 'Rain gear or sun protection' },
-        );
-      } else if (transportMode === 'bike') {
-        transportItems.push(
-          { id: 'bike-check', title: 'Bike maintenance check', status: 'pending', notes: 'Tires, brakes, chain, lights' },
-          { id: 'bike-routes', title: 'Plot bike-friendly routes', status: 'pending', notes: 'Cycle paths & bike lanes' },
-          { id: 'bike-lock', title: 'Pack bike lock', status: 'pending', notes: 'Secure parking at stops' },
-          { id: 'helmet', title: 'Pack helmet & safety gear', status: 'pending', notes: 'Reflective vest, lights' },
-        );
-      } else {
-        transportItems.push(
-          { id: 'flight-checkin', title: 'Check in for flights', status: 'pending', notes: 'Online check-in 24h before' },
-          { id: 'baggage', title: 'Pack baggage within limits', status: 'pending', notes: 'Check airline weight & size rules' },
-          { id: 'airport-transfer', title: 'Arrange airport transfer', status: 'pending', notes: 'Book shuttle or taxi in advance' },
-          { id: 'airport-arrival', title: 'Plan airport arrival time', status: 'pending', notes: 'Arrive 2-3h before departure' },
-        );
-      }
+      const generalItems = [
+        { id: 'visa', title: 'Visa requirements', status: 'pending' },
+        { id: 'passport', title: 'Passport validity', status: 'pending' },
+        { id: 'insurance', title: 'Travel insurance', status: 'pending' },
+        { id: 'vaccinations', title: 'Vaccinations', status: 'pending' },
+      ];
+      const transportLabels: Record<string, string> = {
+        drive: 'Vehicle & road trip prep',
+        transit: 'Transit pass & route planning',
+        walk: 'Walking route planning',
+        bike: 'Bicycle & gear prep',
+        fly: 'Flight & airport prep',
+      };
       return respond(200, {
         destination,
-        checklist: [
-          { id: 'visa', title: 'Visa requirements', status: 'pending', notes: `Check visa requirements for ${destination}` },
-          { id: 'passport', title: 'Passport validity', status: 'pending', notes: 'Must be valid 6 months beyond travel' },
-          { id: 'insurance', title: 'Travel insurance', status: 'pending', notes: 'Recommended for medical & cancellation' },
-          { id: 'vaccinations', title: 'Vaccinations', status: 'pending', notes: 'Check CDC/WHO recommendations' },
-          ...transportItems,
-        ],
-        etiquette: [
-          'Learn basic greetings in the local language',
-          'Research tipping customs',
-          'Know dress codes for religious sites',
-          'Understand local dining etiquette',
-        ],
-      }, headers);
-    }
-
-    // GET /trips/{tripId}/packing
-    if (path === '/trips/{tripId}/packing' && method === 'GET') {
-      return respond(200, {
-        essentials: ['Passport', 'Phone charger', 'Power bank', 'Travel adapter'],
-        clothing: ['Comfortable walking shoes', 'Light jacket', 'Weather-appropriate outfits'],
-        toiletries: ['Sunscreen', 'Hand sanitizer', 'Basic first-aid kit'],
-        documents: ['Print hotel confirmations', 'Download offline maps', 'Emergency contacts'],
+        checklist: generalItems,
+        transportMode,
+        transportLabel: transportLabels[transportMode] || 'Flight & airport prep',
+        etiquette: [],
       }, headers);
     }
 

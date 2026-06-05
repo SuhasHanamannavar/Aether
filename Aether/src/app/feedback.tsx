@@ -170,8 +170,6 @@ export default function FeedbackScreen() {
     router.back();
   }, [router]);
 
-  const confettiColors = ['#E8A87C', '#F0C4A8', '#4A3728', '#C4956A', '#FFFFFF', '#F5EDE3'];
-
   if (submitted) {
     return (
       <SafeAreaView style={styles.container}>
@@ -192,12 +190,12 @@ export default function FeedbackScreen() {
           <Animated.View entering={FadeInUp.duration(400).springify().delay(650)}>
             <Button title="Back to Dashboard" onPress={handleBackHome} variant="secondary" />
           </Animated.View>
-          {confettiColors.map((color, i) => (
+          {['#E8A87C', '#41B3A3'].map((color, i) => (
             <ConfettiPiece
               key={i}
               delay={i * 80}
               color={color}
-              left={20 + (SCREEN_WIDTH - 40) * (i / (confettiColors.length - 1))}
+              left={20 + (SCREEN_WIDTH - 40) * (i / 1)}
             />
           ))}
         </View>

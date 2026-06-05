@@ -10,28 +10,49 @@ export interface MapMarker {
   color?: string;
 }
 
+export interface RouteLine {
+  id: string;
+  coordinates: [number, number][];
+  color?: string;
+  width?: number;
+  label?: string;
+}
+
+export interface GeofenceArea {
+  id: string;
+  coordinates: [number, number][];
+  color?: string;
+  label?: string;
+}
+
 interface MapViewProps {
   center?: [number, number];
   zoom?: number;
   markers?: MapMarker[];
+  routes?: RouteLine[];
+  geofences?: GeofenceArea[];
   colorScheme?: 'Light' | 'Dark';
   mapStyle?: string;
   style?: ViewStyle;
   onMapClick?: (coords: { lng: number; lat: number }) => void;
+  onMarkerClick?: (index: number) => void;
   interactive?: boolean;
 }
 
-const DEFAULT_CENTER: [number, number] = [139.6917, 35.6895]; // Tokyo, Japan
+const DEFAULT_CENTER: [number, number] = [139.6917, 35.6895];
 const DEFAULT_ZOOM = 5;
 
 export default function MapView({
   center = DEFAULT_CENTER,
   zoom = DEFAULT_ZOOM,
   markers = [],
+  routes = [],
+  geofences = [],
   colorScheme = 'Light',
   mapStyle,
   style,
   onMapClick,
+  onMarkerClick,
   interactive = true,
 }: MapViewProps) {
   const webRef = useRef<WebView>(null);
@@ -48,6 +69,8 @@ export default function MapView({
         color: m.color || '#E8A87C',
       }))
     );
+    const routesJson = JSON.stringify(routes);
+    const geofencesJson = JSON.stringify(geofences);
 
     return `
 <!DOCTYPE html>
@@ -135,21 +158,101 @@ export default function MapView({
         }
       });
 
+      // Markers
       var markers = ${markersJson};
-      markers.forEach(function(m) {
+      markers.forEach(function(m, idx) {
         var el = document.createElement('div');
         el.className = 'marker';
         el.style.backgroundColor = m.color + '22';
         el.innerHTML = '<div class="marker-inner" style="background:' + m.color + '">' + m.emoji + '</div>';
+        el.addEventListener('click', function() {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'markerClick', index: idx }));
+        });
         var popup = null;
         if (m.title) {
           popup = new maplibregl.Popup({ offset: 25 }).setHTML('<b>' + m.title + '</b>');
         }
-        var marker = new maplibregl.Marker({ element: el })
+        new maplibregl.Marker({ element: el })
           .setLngLat(m.coordinates)
+          .setPopup(popup)
           .addTo(map);
-        if (popup) {
-          marker.setPopup(popup);
+      });
+
+      // Routes
+      var routes = ${routesJson};
+      routes.forEach(function(r) {
+        if (r.coordinates && r.coordinates.length > 1) {
+          map.addLayer({
+            id: 'route-' + r.id,
+            type: 'line',
+            source: {
+              type: 'geojson',
+              data: {
+                type: 'Feature',
+                properties: {},
+                geometry: {
+                  type: 'LineString',
+                  coordinates: r.coordinates,
+                },
+              },
+            },
+            layout: {
+              'line-join': 'round',
+              'line-cap': 'round',
+            },
+            paint: {
+              'line-color': r.color || '#3B82F6',
+              'line-width': r.width || 4,
+              'line-opacity': 0.8,
+            },
+          });
+        }
+      });
+
+      // Geofences
+      var geofences = ${geofencesJson};
+      geofences.forEach(function(g) {
+        if (g.coordinates && g.coordinates.length > 2) {
+          map.addLayer({
+            id: 'geofence-' + g.id,
+            type: 'fill',
+            source: {
+              type: 'geojson',
+              data: {
+                type: 'Feature',
+                properties: {},
+                geometry: {
+                  type: 'Polygon',
+                  coordinates: [g.coordinates],
+                },
+              },
+            },
+            paint: {
+              'fill-color': g.color || '#10B981',
+              'fill-opacity': 0.15,
+            },
+          });
+          map.addLayer({
+            id: 'geofence-outline-' + g.id,
+            type: 'line',
+            source: {
+              type: 'geojson',
+              data: {
+                type: 'Feature',
+                properties: {},
+                geometry: {
+                  type: 'Polygon',
+                  coordinates: [g.coordinates],
+                },
+              },
+            },
+            paint: {
+              'line-color': g.color || '#10B981',
+              'line-width': 2,
+              'line-opacity': 0.5,
+              'line-dasharray': [4, 3],
+            },
+          });
         }
       });
 
@@ -164,21 +267,22 @@ export default function MapView({
             });
           } else if (data.type === 'setMarkers') {
             document.querySelectorAll('.marker').forEach(function(el) { el.remove(); });
-            data.markers.forEach(function(m) {
+            data.markers.forEach(function(m, idx) {
               var el = document.createElement('div');
               el.className = 'marker';
               el.style.backgroundColor = m.color + '22';
               el.innerHTML = '<div class="marker-inner" style="background:' + m.color + '">' + (m.emoji || '📍') + '</div>';
+              el.addEventListener('click', function() {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'markerClick', index: idx }));
+              });
               var popup = null;
               if (m.title) {
                 popup = new maplibregl.Popup({ offset: 25 }).setHTML('<b>' + m.title + '</b>');
               }
-              var marker = new maplibregl.Marker({ element: el })
+              new maplibregl.Marker({ element: el })
                 .setLngLat(m.coordinates)
+                .setPopup(popup)
                 .addTo(map);
-              if (popup) {
-                marker.setPopup(popup);
-              }
             });
           }
         } catch(e) {}
@@ -187,7 +291,7 @@ export default function MapView({
   </script>
 </body>
 </html>`;
-  }, [apiKey, region, useMapStyle, colorScheme, center, zoom, markers, interactive]);
+  }, [apiKey, region, useMapStyle, colorScheme, center, zoom, markers, routes, geofences, interactive]);
 
   const handleMessage = useCallback(
     (event: WebViewMessageEvent) => {
@@ -196,9 +300,12 @@ export default function MapView({
         if (data.type === 'mapClick' && onMapClick) {
           onMapClick({ lng: data.lng, lat: data.lat });
         }
+        if (data.type === 'markerClick' && onMarkerClick) {
+          onMarkerClick(data.index);
+        }
       } catch {}
     },
-    [onMapClick]
+    [onMapClick, onMarkerClick]
   );
 
   const flyTo = useCallback((coords: [number, number], newZoom?: number) => {

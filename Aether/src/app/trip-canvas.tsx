@@ -29,43 +29,21 @@ const { width } = Dimensions.get('window');
 const MAP_HEIGHT = 280;
 const CARD_WIDTH = width * 0.75;
 
-const archetypes = [
-  {
-    id: 'culinary',
-    title: 'The Culinary Journey',
-    subtitle: 'Taste the heart of Japan',
-    emoji: '🍜',
-    color: '#E8A87C',
-    score: 94,
-    highlights: ['Sushi masterclasses', 'Street food tours', 'Sake tasting'],
-  },
-  {
-    id: 'zen',
-    title: 'The Zen Garden Retreat',
-    subtitle: 'Find your inner peace',
-    emoji: '🏯',
-    color: '#41B3A3',
-    score: 91,
-    highlights: ['Temple stays', 'Tea ceremonies', 'Onsen baths'],
-  },
-  {
-    id: 'urban',
-    title: 'The Urban Explorer',
-    subtitle: 'City lights & hidden alleys',
-    emoji: '🌃',
-    color: '#1A1A2E',
-    score: 88,
-    highlights: ['Neon Tokyo nights', 'Akihabara anime', 'Rooftop bars'],
-  },
-  {
-    id: 'nature',
-    title: 'The Mountain Wanderer',
-    subtitle: 'Trails, peaks & sunrise',
-    emoji: '🏔️',
-    color: '#10B981',
-    score: 86,
-    highlights: ['Mt. Fuji trek', 'Bamboo forests', 'Alpine villages'],
-  },
+interface ArchetypeType {
+  id: string;
+  title: string;
+  subtitle: string;
+  emoji: string;
+  color: string;
+  score: number;
+  highlights: string[];
+}
+
+const DEFAULT_ARCHETYPES: ArchetypeType[] = [
+  { id: 'culinary', title: 'The Culinary Journey', subtitle: 'Taste the heart of the destination', emoji: '🍜', color: '#E8A87C', score: 90, highlights: ['Local cuisine tours', 'Street food markets', 'Cooking classes'] },
+  { id: 'zen', title: 'The Zen Retreat', subtitle: 'Find your inner peace', emoji: '🏯', color: '#41B3A3', score: 88, highlights: ['Wellness activities', 'Cultural sites', 'Nature walks'] },
+  { id: 'urban', title: 'The Urban Explorer', subtitle: 'City lights & hidden gems', emoji: '🌃', color: '#1A1A2E', score: 85, highlights: ['City landmarks', 'Local nightlife', 'Shopping districts'] },
+  { id: 'nature', title: 'The Nature Wanderer', subtitle: 'Trails, peaks & sunrises', emoji: '🏔️', color: '#10B981', score: 83, highlights: ['Hiking trails', 'Scenic viewpoints', 'Outdoor adventures'] },
 ];
 
 function ArchetypeCard({
@@ -74,7 +52,7 @@ function ArchetypeCard({
   onPress,
   width,
 }: {
-  archetype: typeof archetypes[0];
+  archetype: ArchetypeType;
   isSelected: boolean;
   onPress: () => void;
   width: number;
@@ -154,7 +132,7 @@ export default function TripCanvasScreen() {
   const { trip, setArchetype, setTransportMode } = useTrip();
   const [selectedArchetype, setSelectedArchetype] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [canvasData, setCanvasData] = useState<typeof archetypes | null>(null);
+  const [canvasData, setCanvasData] = useState<ArchetypeType[] | null>(null);
   const [generating, setGenerating] = useState(false);
   const [transportMode, setLocalTransportMode] = useState<TransportMode>(trip.transportMode || 'fly');
 
@@ -170,7 +148,7 @@ export default function TripCanvasScreen() {
         if (data && data.archetypes) {
           setCanvasData(data.archetypes);
         }
-      } catch { /* use defaults */ }
+      } catch {}
       setLoading(false);
     })();
   }, [trip.tripId]);
@@ -206,13 +184,7 @@ export default function TripCanvasScreen() {
               center={[137.6836, 36.1000]}
               zoom={5.5}
               interactive={true}
-              markers={[
-                { coordinates: [139.6917, 35.6895], title: 'Tokyo', emoji: '🗼', color: '#41B3A3' },
-                { coordinates: [135.7681, 35.0116], title: 'Kyoto', emoji: '⛩️', color: '#E8A87C' },
-                { coordinates: [135.5023, 34.6937], title: 'Osaka', emoji: '🏯', color: '#1A1A2E' },
-                { coordinates: [141.3468, 43.0621], title: 'Hokkaido', emoji: '❄️', color: '#10B981' },
-                { coordinates: [127.6809, 26.2124], title: 'Okinawa', emoji: '🏝️', color: '#F59E0B' },
-              ]}
+              markers={[]}
               colorScheme="Light"
             />
             <View style={styles.mapGradient} />
@@ -234,25 +206,29 @@ export default function TripCanvasScreen() {
             </Text>
           </Animated.View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.cardsScroll}
-            snapToInterval={CARD_WIDTH + spacing.lg}
-            decelerationRate="fast"
-          >
-            <View style={styles.cardsRow}>
-              {archetypes.map((arch, i) => (
-                <ArchetypeCard
-                  key={arch.id}
-                  archetype={arch}
-                  isSelected={selectedArchetype === arch.id}
-                  onPress={() => handleCardPress(arch.id)}
-                  width={CARD_WIDTH}
-                />
-              ))}
-            </View>
-          </ScrollView>
+          {loading ? (
+            <Text style={styles.loadingText}>Analyzing your trip...</Text>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.cardsScroll}
+              snapToInterval={CARD_WIDTH + spacing.lg}
+              decelerationRate="fast"
+            >
+              <View style={styles.cardsRow}>
+                {(canvasData || DEFAULT_ARCHETYPES).map((arch, i) => (
+                  <ArchetypeCard
+                    key={arch.id}
+                    archetype={arch}
+                    isSelected={selectedArchetype === arch.id}
+                    onPress={() => handleCardPress(arch.id)}
+                    width={CARD_WIDTH}
+                  />
+                ))}
+              </View>
+            </ScrollView>
+          )}
         </View>
       </ScrollView>
 
@@ -332,10 +308,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
   },
   sectionSubtitle: {
-    ...typography.body,
+    ...typography.caption,
     color: colors.textSecondary,
     marginTop: spacing.xs,
-    paddingHorizontal: spacing.xl,
+  },
+  loadingText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    paddingVertical: spacing.xl * 2,
   },
   cardsScroll: {
     paddingLeft: spacing.xl,

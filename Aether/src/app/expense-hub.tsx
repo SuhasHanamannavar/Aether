@@ -33,24 +33,6 @@ import { expensesApi } from '../services/api';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
-const EXPENSE_THEME = {
-  bg: '#2D4A2D',
-  surface: '#1E3A1E',
-  surfaceLight: 'rgba(255,255,255,0.06)',
-  accent: '#E8A87C',
-  accentDim: 'rgba(232,168,124,0.15)',
-  textPrimary: '#FFFFFF',
-  textSecondary: 'rgba(255,255,255,0.7)',
-  textTertiary: 'rgba(255,255,255,0.4)',
-  borderLight: 'rgba(255,255,255,0.08)',
-  borderMedium: 'rgba(255,255,255,0.15)',
-  glassBg: 'rgba(255,255,255,0.1)',
-  glassBorder: 'rgba(255,255,255,0.18)',
-  green: '#10B981',
-  red: '#EF4444',
-  amber: '#F59E0B',
-};
-
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 const CATEGORIES = [
@@ -78,7 +60,7 @@ function CircularProgress({
   progress,
   size = 120,
   strokeWidth = 12,
-  color = EXPENSE_THEME.accent,
+  color = colors.accent,
   trackColor = 'rgba(255,255,255,0.1)',
   children,
 }: {
@@ -161,7 +143,7 @@ function CircularProgress({
             width: innerSize,
             height: innerSize,
             borderRadius: half - strokeWidth,
-            backgroundColor: EXPENSE_THEME.surface,
+            backgroundColor: colors.surface,
             justifyContent: 'center',
             alignItems: 'center',
           }}
@@ -418,7 +400,7 @@ export default function ExpenseHubScreen() {
           </Text>
         </View>
         <View style={styles.headerBadge}>
-          <Text style={[styles.headerBadgeText, isOverBudget && { color: EXPENSE_THEME.red }]}>
+          <Text style={[styles.headerBadgeText, isOverBudget && { color: colors.error }]}>
             {budget > 0 ? formatCurrency(totalSpent) : '$0'}
           </Text>
         </View>
@@ -444,7 +426,7 @@ export default function ExpenseHubScreen() {
                     : 'Remaining'
                   : 'No budget set'}
               </Text>
-              <Text style={[styles.budgetValue, isOverBudget && { color: EXPENSE_THEME.red }]}>
+              <Text style={[styles.budgetValue, isOverBudget && { color: colors.error }]}>
                 {budget > 0
                   ? `${isOverBudget ? '-' : '+'}${formatCurrency(remaining)}`
                   : formatCurrency(totalSpent)}
@@ -568,7 +550,7 @@ export default function ExpenseHubScreen() {
                   <Text
                     style={[
                       styles.categoryChipLabel,
-                      formCategory === c.key && { color: EXPENSE_THEME.textPrimary },
+                      formCategory === c.key && { color: colors.text },
                     ]}
                   >
                     {c.label}
@@ -586,7 +568,7 @@ export default function ExpenseHubScreen() {
                 onChangeText={setFormAmount}
                 keyboardType="decimal-pad"
                 placeholder="0.00"
-                placeholderTextColor={EXPENSE_THEME.textTertiary}
+                placeholderTextColor={colors.textTertiary}
               />
             </View>
 
@@ -596,7 +578,7 @@ export default function ExpenseHubScreen() {
               value={formDescription}
               onChangeText={setFormDescription}
               placeholder="What was this for?"
-              placeholderTextColor={EXPENSE_THEME.textTertiary}
+              placeholderTextColor={colors.textTertiary}
             />
 
             <Text style={styles.formLabel}>Date</Text>
@@ -605,7 +587,7 @@ export default function ExpenseHubScreen() {
               value={formDate}
               onChangeText={setFormDate}
               placeholder="YYYY-MM-DD"
-              placeholderTextColor={EXPENSE_THEME.textTertiary}
+              placeholderTextColor={colors.textTertiary}
             />
 
             <Button
@@ -625,7 +607,7 @@ export default function ExpenseHubScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: EXPENSE_THEME.bg,
+    backgroundColor: colors.background,
   },
   scroll: {
     flex: 1,
@@ -644,14 +626,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: EXPENSE_THEME.glassBg,
+    backgroundColor: colors.borderLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
   },
   backArrow: {
     fontSize: 20,
-    color: EXPENSE_THEME.textPrimary,
+    color: colors.text,
     fontWeight: '600',
   },
   headerTitleWrap: {
@@ -659,34 +641,34 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     ...typography.h2,
-    color: EXPENSE_THEME.textPrimary,
+    color: colors.text,
   },
   headerSubtitle: {
     ...typography.caption,
-    color: EXPENSE_THEME.textSecondary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   headerBadge: {
-    backgroundColor: EXPENSE_THEME.accentDim,
+    backgroundColor: colors.accent,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
   },
   headerBadgeText: {
     ...typography.captionBold,
-    color: EXPENSE_THEME.accent,
+    color: colors.accent,
   },
   budgetCard: {
     marginHorizontal: spacing.xl,
-    backgroundColor: EXPENSE_THEME.surface,
+    backgroundColor: colors.surface,
     borderRadius: borderRadius.xl,
     padding: spacing.xl,
     borderWidth: 1,
-    borderColor: EXPENSE_THEME.borderMedium,
+    borderColor: colors.border,
   },
   budgetTitle: {
     ...typography.captionBold,
-    color: EXPENSE_THEME.textTertiary,
+    color: colors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: spacing.lg,
@@ -698,12 +680,12 @@ const styles = StyleSheet.create({
   },
   circularAmount: {
     ...typography.h2,
-    color: EXPENSE_THEME.textPrimary,
+    color: colors.text,
     letterSpacing: -0.3,
   },
   circularLabel: {
     ...typography.small,
-    color: EXPENSE_THEME.textTertiary,
+    color: colors.textTertiary,
     marginTop: 2,
   },
   budgetInfo: {
@@ -712,17 +694,17 @@ const styles = StyleSheet.create({
   },
   budgetStatus: {
     ...typography.bodyBold,
-    color: EXPENSE_THEME.textSecondary,
+    color: colors.textSecondary,
   },
   budgetValue: {
     fontSize: 32,
     fontWeight: '700',
-    color: EXPENSE_THEME.green,
+    color: colors.success,
     letterSpacing: -0.5,
   },
   budgetMeta: {
     ...typography.caption,
-    color: EXPENSE_THEME.textTertiary,
+    color: colors.textTertiary,
   },
   legendRow: {
     flexDirection: 'row',
@@ -731,7 +713,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     paddingTop: spacing.lg,
     borderTopWidth: 1,
-    borderTopColor: EXPENSE_THEME.borderLight,
+    borderTopColor: colors.borderLight,
   },
   legendItem: {
     flexDirection: 'row',
@@ -752,7 +734,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.h3,
-    color: EXPENSE_THEME.textPrimary,
+    color: colors.text,
     marginBottom: spacing.lg,
   },
   categoryScrollContent: {
@@ -760,12 +742,12 @@ const styles = StyleSheet.create({
     paddingRight: spacing.xl,
   },
   categoryCard: {
-    backgroundColor: EXPENSE_THEME.surface,
+    backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     padding: spacing.lg,
     minWidth: 120,
     borderWidth: 1,
-    borderColor: EXPENSE_THEME.borderLight,
+    borderColor: colors.borderLight,
     gap: spacing.sm,
   },
   categoryEmoji: {
@@ -773,12 +755,12 @@ const styles = StyleSheet.create({
   },
   categoryAmount: {
     ...typography.h3,
-    color: EXPENSE_THEME.textPrimary,
+    color: colors.text,
     letterSpacing: -0.2,
   },
   categoryBarBg: {
     height: 4,
-    backgroundColor: EXPENSE_THEME.surfaceLight,
+    backgroundColor: colors.borderLight,
     borderRadius: 2,
     overflow: 'hidden',
   },
@@ -788,7 +770,7 @@ const styles = StyleSheet.create({
   },
   categoryLabel: {
     ...typography.small,
-    color: EXPENSE_THEME.textTertiary,
+    color: colors.textTertiary,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
@@ -804,7 +786,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingBottom: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: EXPENSE_THEME.borderLight,
+    borderBottomColor: colors.borderLight,
   },
   expenseGroupLeft: {
     flexDirection: 'row',
@@ -816,18 +798,18 @@ const styles = StyleSheet.create({
   },
   expenseGroupLabel: {
     ...typography.captionBold,
-    color: EXPENSE_THEME.textSecondary,
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.3,
   },
   expenseGroupTotal: {
     ...typography.captionBold,
-    color: EXPENSE_THEME.textPrimary,
+    color: colors.text,
   },
   expenseItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: EXPENSE_THEME.surfaceLight,
+    backgroundColor: colors.borderLight,
     borderRadius: borderRadius.md,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
@@ -838,7 +820,7 @@ const styles = StyleSheet.create({
   },
   expenseDate: {
     ...typography.small,
-    color: EXPENSE_THEME.textTertiary,
+    color: colors.textTertiary,
     fontWeight: '600',
   },
   expenseCenter: {
@@ -856,12 +838,12 @@ const styles = StyleSheet.create({
   },
   expenseDesc: {
     ...typography.body,
-    color: EXPENSE_THEME.textPrimary,
+    color: colors.text,
     flex: 1,
   },
   expenseAmount: {
     ...typography.bodyBold,
-    color: EXPENSE_THEME.red,
+    color: colors.error,
     marginLeft: spacing.md,
   },
   expenseActions: {
@@ -872,14 +854,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   deleteBtn: {
-    backgroundColor: EXPENSE_THEME.red + '25',
+    backgroundColor: colors.error + '25',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
   },
   deleteBtnText: {
     ...typography.small,
-    color: EXPENSE_THEME.red,
+    color: colors.error,
     fontWeight: '700',
   },
   emptyBox: {
@@ -892,11 +874,11 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     ...typography.h3,
-    color: EXPENSE_THEME.textPrimary,
+    color: colors.text,
   },
   emptyDesc: {
     ...typography.caption,
-    color: EXPENSE_THEME.textSecondary,
+    color: colors.textSecondary,
     marginTop: spacing.sm,
   },
   fabContainer: {
@@ -908,7 +890,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: EXPENSE_THEME.accent,
+    backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.lg,
@@ -924,7 +906,7 @@ const styles = StyleSheet.create({
   },
   formLabel: {
     ...typography.captionBold,
-    color: EXPENSE_THEME.textSecondary,
+    color: colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: spacing.sm,
@@ -942,40 +924,40 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.full,
-    backgroundColor: EXPENSE_THEME.surfaceLight,
+    backgroundColor: colors.borderLight,
     borderWidth: 1,
-    borderColor: EXPENSE_THEME.borderLight,
+    borderColor: colors.borderLight,
   },
   categoryChipEmoji: {
     fontSize: 16,
   },
   categoryChipLabel: {
     ...typography.caption,
-    color: EXPENSE_THEME.textTertiary,
+    color: colors.textTertiary,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: EXPENSE_THEME.surfaceLight,
+    backgroundColor: colors.borderLight,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: EXPENSE_THEME.borderLight,
+    borderColor: colors.borderLight,
   },
   inputCurrency: {
     ...typography.h2,
-    color: EXPENSE_THEME.textTertiary,
+    color: colors.textTertiary,
     paddingLeft: spacing.lg,
   },
   input: {
     flex: 1,
     ...typography.body,
-    color: EXPENSE_THEME.textPrimary,
+    color: colors.text,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    backgroundColor: EXPENSE_THEME.surfaceLight,
+    backgroundColor: colors.borderLight,
     borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: EXPENSE_THEME.borderLight,
+    borderColor: colors.borderLight,
   },
   submitBtn: {
     marginTop: spacing.xl,
